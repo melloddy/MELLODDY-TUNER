@@ -4,7 +4,7 @@ Data preparation scripts, including locality sensitive hashing (LSH) for fold sp
 
 Main authors: Lukas Friedrich (Merck KGaA), Jaak Simm (KU Leuven)
 
-Contributors: Lina Humbeck (Boehringer Ingelheim^), Ansgar Schuffenhauer (Novartis), Niko Fechner (Novartis), Noe Sturm (Novartis), Anastasia Pentina (Bayer), Wouter Heyndrickx (Janssen Pharmaceuticals), Peter Schmidtke (Servier/Discngine)
+Contributors: Lina Humbeck (Boehringer Ingelheim), Ansgar Schuffenhauer (Novartis), Niko Fechner (Novartis), Noe Sturm (Novartis), Anastasia Pentina (Bayer), Wouter Heyndrickx (Janssen Pharmaceuticals), Peter Schmidtke (Servier/Discngine)
 
 ## Requirements
 
