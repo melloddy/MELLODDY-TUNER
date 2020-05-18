@@ -1,6 +1,13 @@
 # Data Preparation Script for the IMI Project MELLODDY
-Data preparation scripts, including locality sensitive hashing (LSH).
+
+Data preparation scripts, including locality sensitive hashing (LSH) for fold splitting and activity formatting.
+
+Main authors: Lukas Friedrich (Merck KGaA), Jaak Simm (KU Leuven)
+
+Contributors: Lina Humbeck (Boehringer Ingelheim^), Ansgar Schuffenhauer (Novartis), Niko Fechner (Novartis), Noe Sturm (Novartis), Anastasia Pentina (Bayer), Wouter Heyndrickx (Janssen Pharmaceuticals), Peter Schmidtke (Servier/Discngine)
+
 ## Requirements
+
 The data preprocessing script requires:
 1. Python 3.6 or higher
 2. Local Conda installation (e.g. miniconda)
@@ -34,8 +41,10 @@ Finally, you can run the processing scripts located in ```git_repo/bin/```.
 
 ## Prepare Input Files
 The input files contain information about structures (T2) and activity data of these structures (T4) in certain assays.\
-A weight table file describes the input assays and their corresponding weights in multi-class prediction setup.\
-Rules and guidelines to extract data from in-house databases can be found in the Data Preparation Manual provided by WP1.
+A weight table file describes the input assays and their corresponding weights in multi-class prediction setup (T3).\
+As an example, you can download prepared input files from ChEMBL (v25) from the KU Leuven homepage:
+
+[ChEMBL25 example files](https://homes.esat.kuleuven.be/~jsimm/chembl25_github.zip)
 
 To run the preprocessing script, the input files should be in csv format and should contain:
 
@@ -62,7 +71,7 @@ An example configuration file for standardization is provided in:
 ```
 containing information about structure standardization options, fingerprint settings,\
 encryption key, high entropy bits for train/test splitting with LSH and activity data thresholds.
-The config file can also be imported by the user.
+The config file can also be modified by the user.
 
 
 ## Run Data Prepration Script for Training
@@ -158,8 +167,8 @@ The data processing includes 3 different steps, which can be performed independe
 ## Comparison with Reference Result Files
 
 
-To verify the common script, please run the pipeline with the provided public data sets (chembl_T2.csv, chembl_T3.csv,  chembl_T4.csv).  
-[ChEMBL input files on BOX (public)](https://jjcloud.box.com/s/ks44jfvex6hq5ycm9etyyronmh77qot0)
+To verify the common script, please run the pipeline with the provided public data sets (chembl25_T2.csv, chembl25_T3.csv,  chembl25_T4.csv).  
+
 
 Please use the config file:
 ```
@@ -184,41 +193,9 @@ python bin/prepare_4_melloddy.py \
 --ref_hash {path/to/tests/structure_preparation_test/ref_hash.json}\
 ```
 
-The public ref_hash.json file and the related processed files for comparison are on BOX (8th of May 2020, Version 1.0):  
-[ChEMBL process files on BOX (public)](https://jjcloud.box.com/s/tj45v0584p3zexq1ma83ok7it1rn7oe5)
+The ref_hash.json file can be found in ```tests/structure_preparation_test/```.
 
-Please compare in particular the following files (sorted by descriptor_vector_id):
-
-**a)** results/T11.csv
-
-**b)** results/T10.csv
-
-**c)** results/T10_counts.csv
-
-**d)** results/weight_table_T3_mapped.csv
-
-**e)** results/weight_table_T9.csv
-
-**f)** results_tmp/descriptors/mapping_table_T5.csv
-
-**g)** results_tmp/descriptors/mapping_table_T10.csv
-
-The files_4_ml folder consists of 5 files, which can be compared to the reference files:
-
-**a)** ```files_4_ml/T11_x.mtx``` and ```files_4_ml/T11_x.npy```
-
-**b)** ```files_4_ml/T11_fold_vector.npy```
-
-**c)** ```files_4_ml/T10_counts.csv```
-
-**d)** ```files_4_ml/T10_y.mtx``` and ```files_4_ml/T10_y.npy```
-
-**e)** ```files_4_ml/T9_red.csv```
-
-
-Pharma ONLY:
-You find the private "ref_hash.json" and the related processed files in the PharmaOnly BOX (8th of May 2020, Version 1.0):  
-[ChEMBL process files on BOX (private)](https://jjcloud.box.com/s/ocqkj6e3div2rcmi88f8fdw5jzkvyubu)
+Already preprocessed files ready for multi-task machine learning with SparseChem [SparseChem](https://github.com/melloddy/SparseChem) can be found here: [ChEMBL25_processed](https://homes.esat.kuleuven.be/~jsimm/chembl25_output_github_v1.0.zip)
 
 
 # Docker
