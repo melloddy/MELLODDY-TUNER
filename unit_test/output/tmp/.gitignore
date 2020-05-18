@@ -1,0 +1,5 @@
+*.npy
+*.csv
+chembl/*.csv
+/melloddy_tuner.egg-info/
+*.pyc

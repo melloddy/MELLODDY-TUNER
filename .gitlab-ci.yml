@@ -1,0 +1,17 @@
+unittests_specific_env:
+  image: continuumio/miniconda3:latest
+  script:
+    - apt-get update -q -y
+    - apt-get install -y build-essential
+    - conda env create -f environment_melloddy_tuner.yml
+    - source activate melloddy_tuner
+    - python -m pytest
+
+unittests_general_env:
+  image: continuumio/miniconda3:latest
+  script:
+    - apt-get update -q -y
+    - apt-get install -y build-essential
+    - conda env create -f environment_melloddy_tuner_generic.yml
+    - source activate melloddy_tuner
+    - python -m pytest

@@ -1,0 +1,25 @@
+FROM centos
+
+ENV PATH /opt/conda/bin:$PATH
+
+COPY . /opt/data_prep
+
+RUN yum install -y libXrender libXext
+
+RUN curl https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh &&  \
+/bin/bash miniconda.sh -b -p /opt/conda && \
+/opt/conda/bin/conda clean -tipsy && \
+/opt/conda/bin/conda config --set auto_activate_base false && \
+/opt/conda/bin/conda env create -f /opt/data_prep/environment_melloddy_tuner.yml && \
+ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+echo "conda activate melloddy_tuner" >> ~/.bashrc && \
+cd /opt/data_prep 
+WORKDIR /opt/data_prep
+RUN conda run -n melloddy_tuner python setup.py install
+
+CMD ["python" "bin/prepare_4_melloddy.py" ]
+
+
+
+
