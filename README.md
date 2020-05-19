@@ -18,7 +18,7 @@ The data preprocessing script requires:
 
 First, clone the git repository from the MELLODDY gitlab repository:
 ```
-git clone git@git.infra.melloddy.eu:wp1/data_prep.git
+git clone https://github.com/melloddy/MELLODDY-TUNER.git
 ```
 
 Then, you can install the conda environment "melloddy_data_prep" and the required packages by runnning the following command:
