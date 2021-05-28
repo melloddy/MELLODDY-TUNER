@@ -60,9 +60,9 @@ The data preprocessing script requires:
 ## Setup the environment
 
 ### Clone git repository
-First, clone the git repository from the MELLODDY gitlab repository:
+First, clone the git repository from the MELLODDY github repository:
 ```
-git clone git@git.infra.melloddy.eu:wp1/data_prep.git
+git clone https://github.com/melloddy/MELLODDY-TUNER.git
 ```
 ### Create enviroment 
 
@@ -91,6 +91,10 @@ Make sure that the current version is installed.
 # Input and Output Files for Year 2
 
 ## Preparation of Input Files (version year 2)
+
+You find the public example datasets here:
+
+https://github.com/melloddy/datasets
 
 The following datasets will be used in the year 2 federated run:
 
