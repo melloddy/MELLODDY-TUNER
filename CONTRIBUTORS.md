@@ -1,4 +1,3 @@
-om -f $tmp_out
 Year 2
 Structure Standardization: Lukas Friedrich (Merck KGaA)
 Scaffold-based split: Ansgar Schuffenhauer, Noe Sturm (Novartis)

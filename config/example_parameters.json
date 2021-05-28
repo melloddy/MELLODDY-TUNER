@@ -1,0 +1,146 @@
+{
+  "standardization": {
+    "max_num_tautomers": 256,
+    "max_num_atoms": 100,
+    "include_stereoinfo": false
+  },
+  "fingerprint": {
+    "radius": 3,
+    "hashed": true,
+    "fold_size": 32000,
+    "binarized": true
+  },
+  "scaffold_folding": {
+    "nfolds": 5
+  },
+  "credibility_range": {
+    "PANEL": {
+      "min": 3.0,
+      "max": 10.0
+    },
+    "OTHER": {
+      "min": 3.0,
+      "max": 10.0
+    },
+    "AUX_HTS": {
+      "min": -10.0,
+      "max": 10.0
+    },
+    "ADME": {
+      "min": -1e+12,
+      "max": 1e+12
+    },
+    "std": {
+      "min": 1e-12
+    }
+  },
+  "training_quorum": {
+    "regression": {
+      "ADME": {
+        "num_total": 50,
+        "num_uncensored_total": 25
+      },
+      "PANEL": {
+        "num_total": 50,
+        "num_uncensored_total": 25
+      },
+      "OTHER": {
+        "num_total": 50,
+        "num_uncensored_total": 25
+      },
+      "AUX_HTS": {
+        "num_total": 50,
+        "num_uncensored_total": 25
+      }
+    },
+    "classification": {
+      "ADME": {
+        "num_active_total": 25,
+        "num_inactive_total": 25
+      },
+      "PANEL": {
+        "num_active_total": 25,
+        "num_inactive_total": 25
+      },
+      "OTHER": {
+        "num_active_total": 25,
+        "num_inactive_total": 25
+      },
+      "AUX_HTS": {
+        "num_active_total": 10,
+        "num_inactive_total": 10000
+      }
+    }
+  },
+  "evaluation_quorum": {
+    "regression": {
+      "ADME": {
+        "num_fold_min": 50,
+        "num_uncensored_fold_min": 25
+      },
+      "PANEL": {
+        "num_fold_min": 50,
+        "num_uncensored_fold_min": 25
+      },
+      "OTHER": {
+        "num_fold_min": 50,
+        "num_uncensored_fold_min": 25
+      },
+      "AUX_HTS": {
+        "num_fold_min": 50,
+        "num_uncensored_fold_min": 25
+      }
+    },
+    "classification": {
+      "ADME": {
+        "num_active_fold_min": 10,
+        "num_inactive_fold_min": 10
+      },
+      "PANEL": {
+        "num_active_fold_min": 10,
+        "num_inactive_fold_min": 10
+      },
+      "OTHER": {
+        "num_active_fold_min": 10,
+        "num_inactive_fold_min": 10
+      },
+      "AUX_HTS": {
+        "num_active_fold_min": 10,
+        "num_inactive_fold_min": 10
+      }
+    }
+  },
+  "initial_task_weights": {
+    "AUX_HTS": 0.1
+  },
+  "global_thresholds": {
+    "AUX_HTS": 3.0
+  },
+  "censored_downweighting": {
+    "knock_in_barrier": 0.05
+  },
+  "count_task": {
+    "count_data_points": 25
+  },
+  "lsh": {
+    "nfolds": 5,
+    "bits": [
+      26490,
+      8094,
+      25216,
+      21099,
+      2487,
+      2991,
+      9639,
+      17984,
+      24189,
+      8272,
+      1787,
+      31834,
+      11815,
+      8648,
+      27066,
+      17552
+    ]
+  }
+}

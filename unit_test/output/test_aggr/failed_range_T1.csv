@@ -1,0 +1,9 @@
+input_compound_id,input_assay_id,standard_qualifier,standard_value
+1,1,<,
+1,2,<,-1000000000000000.0
+2,2,=,10000000000000.0
+4,3,<,inf
+3,0,=,15.0
+21,0,~,1.0
+1,4,=,17.0
+11,5,=,-10.5

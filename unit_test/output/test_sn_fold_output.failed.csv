@@ -1,0 +1,2 @@
+,input_compound_id,canonical_smiles,murcko_smiles,sn_smiles,fold_id,success,error_message
+1005,garbled,sjkdhajrekdhgv,,,,False,could not parse smiles sjkdhajrekdhgv

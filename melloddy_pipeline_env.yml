@@ -1,0 +1,33 @@
+name: melloddy_pipeline
+channels:
+  - rdkit
+  - defaults
+  - conda-forge
+  - pytorch
+  - anaconda
+dependencies:
+  - mkl
+  - mkl_random
+  - numpy=1.19
+  - openssl
+  - pandas=1.1
+  - python=3.8.2
+  - rdkit=2020.09.1.0
+  - scipy=1.5.2
+  - sqlite
+  - tqdm
+  - nose2
+  - pytest
+  - scikit-learn=0.23.2
+  - pytorch::pytorch=1.4.0
+  - pytorch::torchvision=0.5.0
+  - cudatoolkit=10.1
+  - tensorboard
+  - notebook
+  - ipykernel
+  - jupyterlab
+  - ipykernel
+  - matplotlib
+  - seaborn
+  - dask=2.30.0
+
