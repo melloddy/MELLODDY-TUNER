@@ -13,6 +13,6 @@ This work is licensed under a
 
 # Test Datasets 
 
-All extracted subsets are based on ChEMBL dataL, release v23 (Provided under a Creative Commons Attribution-ShareAlike 3.0 Unported license: http://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_25/LICENSE)
+All extracted subsets are based on ChEMBL dataL, release v23 (Provided under a Creative Commons Attribution-ShareAlike 3.0 Unported license: http://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_23/LICENSE)
 
-v25: http://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_23/
+v23: http://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases/chembl_23/
