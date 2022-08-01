@@ -1,8 +1,8 @@
-input_assay_id,assay_type,use_in_regression,expert_threshold_1,expert_threshold_2,expert_threshold_3,expert_threshold_4,expert_threshold_5,direction
-0,OTHER,True,4,4.5,,,,
-1,PANEL,True,3,,,,,
-2,ADME,True,5,,,,,
-3,ADME,True,5,,,,,
-4,AUX_HTS,False,-6,,,,,low
-5,AUX_HTS,False,6,,,,,high
-6,AUX_HTS,False,6,,,,,
+input_assay_id,assay_type,use_in_regression,expert_threshold_1,expert_threshold_2,expert_threshold_3,expert_threshold_4,expert_threshold_5,direction,is_binary
+0,OTHER,True,4,4.5,,,,,False
+1,PANEL,True,3,,,,,,False
+2,ADME,True,5,,,,,,False
+3,ADME,True,5,,,,,,False
+4,AUX_HTS,False,-6,,,,,low,False
+5,AUX_HTS,False,6,,,,,high,False
+6,AUX_HTS,False,6,,,,,,False

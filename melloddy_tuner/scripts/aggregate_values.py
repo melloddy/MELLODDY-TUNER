@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import time
 from typing import Tuple
+from collections import Counter
 
 import pandas as pd
 import numpy as np
@@ -19,7 +20,11 @@ from melloddy_tuner.utils.helper import (
     sanity_check_assay_sizes,
     sanity_check_assay_type,
     sanity_check_uniqueness,
+    sanity_check_binary,
     save_df_as_csv,
+    save_run_report,
+    validate_T0,
+    validate_T1
 )
 from melloddy_tuner.utils.config import ConfigDict
 from multiprocessing import Pool
@@ -91,6 +96,25 @@ def init_arg_parser():
     return args
 
 
+def most_common_bin_value(values) -> int:
+    """Determines the most common binary value, in case of a tie it returns 1
+    Input:
+        values - list of binary values, accepted values -1 and 1
+    Output:
+        int: the most common binary value. In case of a tie it returns 1
+    """
+    occurence_count = Counter(values)
+    print(len(occurence_count.keys()))
+    if len(occurence_count.keys()) > 1:
+        if occurence_count.most_common(2)[0][1] == occurence_count.most_common(2)[1][1]:
+            return 1
+        else:
+            return occurence_count.most_common(1)[0][0]
+
+    else:
+        return occurence_count.most_common(1)[0][0]
+
+
 def most_common_qualifier(qualifiers: list) -> str:
     """Determines the most common qualifier, in case of a tie including '=' returns '='
     Input:
@@ -125,7 +149,8 @@ def aggr_max(values, qualifiers) -> Tuple:
     If '<' qualifier is present, only those elements ae considered
     """
     if (">" in qualifiers) or ("=" in qualifiers):
-        mask = np.array([i for i in range(len(qualifiers)) if qualifiers[i] != "<"])
+        mask = np.array(
+            [i for i in range(len(qualifiers)) if qualifiers[i] != "<"])
         ind = mask[np.argmax(np.array(values)[mask])]
         aggr_value = values[ind]
         aggr_qualifier = qualifiers[ind]
@@ -147,7 +172,10 @@ def aggregate(x: pd.DataFrame) -> pd.Series:
     Returns:
         pd.Series with index 'standard_value' and 'standard_qualifier'
     """
-    if x["assay_type"].values[0] == "PANEL" or x["assay_type"].values[0] == "OTHER":
+    if x["is_binary"].values[0] == True:
+        aggr_value = most_common_bin_value(x["standard_value"].values)
+        aggr_qualifier = "="
+    elif x["assay_type"].values[0] == "NON-CATALOG-PANEL" or x["assay_type"].values[0] == "OTHER":
         aggr_value, aggr_qualifier = aggr_max(
             x["standard_value"].values, x["standard_qualifier"].values
         )
@@ -169,7 +197,8 @@ def aggregate(x: pd.DataFrame) -> pd.Series:
         )
 
     return pd.Series(
-        [aggr_value, aggr_qualifier], index=["standard_value", "standard_qualifier"]
+        [aggr_value, aggr_qualifier], index=[
+            "standard_value", "standard_qualifier"]
     )
 
 
@@ -206,7 +235,7 @@ def filter_credibility_range(df: pd.DataFrame, conf: dict) -> Tuple:
     # Check value ranges
     if conf:
         ind_to_remove = []
-        for assay_type in ["ADME", "PANEL", "OTHER", "AUX_HTS"]:
+        for assay_type in ["ADME", "NON-CATALOG-PANEL", "OTHER", "AUX_HTS"]:
             if assay_type in conf.keys():
                 ind_to_remove += list(
                     df[
@@ -225,10 +254,47 @@ def filter_credibility_range(df: pd.DataFrame, conf: dict) -> Tuple:
     return df, df_failed
 
 
-def filter_by_std(df: pd.DataFrame, conf: dict) -> Tuple:
-    """Removes tasks that have small std at least in one fold"""
+def filter_binary(df: pd.DataFrame) -> Tuple:
+    """Fiilters binary data.
+
+    Args:
+        df (DataFrame): activity data file containing columns "input_compound_id", "input_assay_id", "standard_qualifier" and "standard_value"
+        conf (optional): configuration dictionary
+    Returns:
+        Tuple[DataFrame, DataFrame]: dataframe with binary vales, dataframe with activity data with non binary values
+    """
+
+    # Remove NaNs
+    ind_to_remove = df[df.standard_value.isnull()].index
+    df_failed = df.loc[ind_to_remove, :].copy()
+    df.drop(axis=0, index=ind_to_remove, inplace=True)
+
+    # Check binary values
+    ind_to_remove = []
+    ind_to_remove += list(
+                    df[
+                        (df.is_binary == True)
+                        & (
+                            (df.standard_value != 1)
+                            & (df.standard_value != -1)
+                        )
+                    ].index)
+    df_failed = df_failed.append(df.loc[ind_to_remove, :].copy())
+    df.drop(axis=0, index=ind_to_remove, inplace=True)
+
+    df.reset_index(drop=True, inplace=True)
+
+    return df, df_failed
+
+def filter_by_std(df: pd.DataFrame, T0: pd.DataFrame, conf: dict) -> Tuple:
+    """Removes tasks that have small std at least in one fold, except for catalog assays"""
+    T0_upd = T0.copy()
+    T0_upd.loc[:, "variance_quorum_OK"] = True
+    non_cat_assays = T0[T0.assay_type !=
+                        'CATALOG-PANEL'].input_assay_id.unique()
     stds = (
-        df[["input_assay_id", "fold_id", "standard_value"]]
+        df[df.input_assay_id.isin(non_cat_assays)][["input_assay_id",
+                                                    "fold_id", "standard_value"]]
         .groupby(["input_assay_id", "fold_id"])
         .std()
         .reset_index()
@@ -243,8 +309,30 @@ def filter_by_std(df: pd.DataFrame, conf: dict) -> Tuple:
     df_failed = df.loc[ind_to_remove, :].copy()
     df.drop(axis=0, index=ind_to_remove, inplace=True)
     df.reset_index(drop=True, inplace=True)
+    ind = T0_upd[T0_upd.input_assay_id.isin(tasks_to_remove)].index
+    T0_upd.loc[ind, "variance_quorum_OK"] = False
 
-    return df, df_failed
+    cat_assays = T0[T0.assay_type == 'CATALOG-PANEL'].input_assay_id.unique()
+    stds = (
+        df[df.input_assay_id.isin(cat_assays)][["input_assay_id",
+                                                "fold_id", "standard_value"]]
+        .groupby(["input_assay_id", "fold_id"])
+        .std()
+        .reset_index()
+    )
+    stds = stds.pivot(
+        columns="fold_id", values="standard_value", index="input_assay_id"
+    )
+    stds.fillna(0, inplace=True)
+    min_stds = stds.min(axis=1)
+    tasks_to_switch_off_regression = min_stds[min_stds <=
+                                              conf["std"]["min"]].index
+    ind = T0_upd[T0_upd.input_assay_id.isin(
+        tasks_to_switch_off_regression)].index
+    #T0_upd.loc[ind, "variance_quorum_OK"] = False
+    T0_upd.loc[ind, 'use_in_regression'] = False
+
+    return df, T0_upd, df_failed
 
 
 def map_qualifiers(df: pd.DataFrame) -> pd.DataFrame:
@@ -300,11 +388,16 @@ def aggregate_replicates(
     """
 
     start_time = time.time()
+    
+    assay_not_in_T1 = T0[~T0.input_assay_id.isin(T1["input_assay_id"].unique())]
+    print(f"{assay_not_in_T1.input_assay_id.nunique()} unique assays are not having data in T1 and will be skipped.")
+    T1_T5 = T1.merge(T5, on="input_compound_id", how="outer")
     df = T0.merge(
-        T1.merge(T5, on="input_compound_id", how="outer"),
+        T1_T5,
         on="input_assay_id",
-        how="outer",
+        how="inner",
     )
+    
     df.reset_index(drop=True, inplace=True)
     end_time = time.time()
     # Time taken in seconds
@@ -312,11 +405,20 @@ def aggregate_replicates(
     print(f"Merge took {time_taken:.08} seconds.")
     # filter values outside the credibility range
     start_time = time.time()
-    df, df_failed_range = filter_credibility_range(df, conf)
+   
+    ind_non_binary = df[df.is_binary == False].index
+    ind_binary = df[df.is_binary == True].index
+
+    df_filter, df_failed_range = filter_credibility_range(
+        df.iloc[ind_non_binary].copy(), conf)
+
+    df_filter_bin, df_failed_binary = filter_binary(
+        df.iloc[ind_binary].copy())
+    df = pd.concat([df_filter_bin, df_filter])
     end_time = time.time()
     # Time taken in seconds
     time_taken = end_time - start_time
-    print(f"Filter credibility range took {time_taken:.08} seconds.")
+    print(f"Filter credibility range and checking binary values took {time_taken:.08} seconds.")
 
     # Standardise the qualifiers
     start_time = time.time()
@@ -355,7 +457,8 @@ def aggregate_replicates(
             df_aggr_ = list(
                 tqdm.tqdm(
                     pool.imap(
-                        aggregate_for_one_task, list(df_dup.groupby("input_assay_id"))
+                        aggregate_for_one_task, list(
+                            df_dup.groupby("input_assay_id"))
                     ),
                     total=len(df_dup.input_assay_id.unique()),
                 )
@@ -363,7 +466,6 @@ def aggregate_replicates(
             pool.close()
             pool.join()
         df_aggr = pd.concat([df_aggr, pd.concat(df_aggr_)])
-
     df_failed_aggr = df_aggr[df_aggr.standard_qualifier.isnull()].copy()
     df_aggr = df_aggr[~df_aggr.standard_qualifier.isnull()].copy()
     df_aggr.reset_index(drop=True, inplace=True)
@@ -373,32 +475,37 @@ def aggregate_replicates(
 
     # Remove tasks with low std
     start_time = time.time()
-    df_aggr, df_failed_std = filter_by_std(df_aggr, conf)
+    df_aggr, T0_upd, df_failed_std = filter_by_std(df_aggr, T0, conf)
     end_time = time.time()
     time_taken = end_time - start_time
-    print(f"Filtering based on standard deviation took {time_taken:.08} seconds.")
+    print(
+        f"Filtering based on standard deviation took {time_taken:.08} seconds.")
     # Add variance_quorum_OK column to T0
-    T0_upd = T0.copy()
-    T0_upd.loc[:, "variance_quorum_OK"] = False
-    ind = T0_upd[T0_upd.input_assay_id.isin(df_aggr.input_assay_id.unique())].index
-    T0_upd.loc[ind, "variance_quorum_OK"] = True
+    #T0_upd = T0.copy()
+    #T0_upd.loc[:, "variance_quorum_OK"] = False
+    # ind = T0_upd[T0_upd.input_assay_id.isin(
+    #    df_aggr.input_assay_id.unique())].index
+    #T0_upd.loc[ind, "variance_quorum_OK"] = True
 
     # round to 2 digits
     dose_response_assays = set(
-        T0[T0.assay_type.isin(["OTHER", "PANEL"])].input_assay_id.unique()
+        T0[T0.assay_type.isin(["OTHER", "NON-CATALOG-PANEL"])
+           ].input_assay_id.unique()
     )
-    ind_to_round = df_aggr[df_aggr.input_assay_id.isin(dose_response_assays)].index
+    ind_to_round = df_aggr[df_aggr.input_assay_id.isin(
+        dose_response_assays)].index
     values = df_aggr.loc[ind_to_round, "standard_value"].values
     values_converted = np.round(values, 2)
     df_aggr.loc[ind_to_round, "standard_value"] = values_converted
 
-    return df_aggr, df_failed_range, df_failed_aggr, df_failed_std, df_dup, T0_upd
+    return df_aggr, df_failed_range, df_failed_binary, df_failed_aggr, df_failed_std, df_dup, T0_upd
 
 
 def write_tmp_output(
     out_dir: Path,
     df: pd.DataFrame,
     df_failed_range: pd.DataFrame,
+    df_failed_binary: pd.DataFrame,
     df_failed_aggr: pd.DataFrame,
     df_failed_std: pd.DataFrame,
     df_dup: pd.DataFrame,
@@ -431,8 +538,17 @@ def write_tmp_output(
         out_dir,
         df_failed_range,
         "failed_range_T1",
-        ["input_compound_id", "input_assay_id", "standard_qualifier", "standard_value"],
+        ["input_compound_id", "input_assay_id",
+            "standard_qualifier", "standard_value"],
     )
+    save_df_as_csv(
+        out_dir,
+        df_failed_binary,
+        "failed_binary_T1",
+        ["input_compound_id", "input_assay_id",
+            "standard_qualifier", "standard_value"],
+    )
+    
     save_df_as_csv(
         out_dir,
         df_failed_aggr,
@@ -487,46 +603,80 @@ def main(args):
         overwriting = True
     else:
         overwriting = False
+    dict_report = {}
+    passed_l = []
     load_config(args)
     load_key(args)
     print("Consistency checks of config and key files.")
     hash_reference_set.main(args)
+    dict_report["run_parameters"] = args
+
     print("Start aggregation.")
+    dict_aggr = {}
     output_dir = prepare(args, overwriting)
     T0 = read_input_file(args["assay_file"])
     T1 = read_input_file(args["activity_file"])
+    validate_T0(T0)
+    validate_T1(T1)
     print("Check assay types in T0.")
-    sanity_check_assay_type(T0)
-
+    
+    passed, dict_assay_type = sanity_check_assay_type(T0)
+    passed_l.append(passed)
+    dict_aggr["assay_type_check"] = dict_assay_type
+    print(T0.loc[T0.is_binary == True].shape)
+    passed, dict_binary = sanity_check_binary(T0)
+    passed_l.append(passed)
+    dict_aggr["binary_check"] = dict_binary
     print("Check consistency of input_assay_id between T0 and T1.")
-    sanity_check_assay_sizes(T0, T1)
+    passed, dict_assay_sizes = sanity_check_assay_sizes(T0, T1)
+    passed_l.append(passed)
+    dict_aggr["assay_sizes_check"] = dict_assay_sizes
     print("Check uniqueness of T0.")
-    sanity_check_uniqueness(T0, colname="input_assay_id", filename=args["assay_file"])
-    print(f"Sanity checks took {time.time() - start:.08} seconds.")
-    print(f"Sanity checks passed.")
+    passed, dict_unique = sanity_check_uniqueness(
+        T0, colname="input_assay_id", filename=args["assay_file"])
+    passed_l.append(passed)
+    dict_aggr["uniqueness"] = dict_unique
 
+    print(f"Sanity checks took {time.time() - start:.08} seconds.")
+    if False in passed_l:
+        dict_report["aggregate_values"] = dict_aggr
+        save_run_report(args, dict_report, "aggregate_vales")
+        exit("Found error. Please check the report.")
+    else:
+        print(f"Sanity checks passed.")
     T5 = read_input_file(args["mapping_table"])
     (
         df_aggr,
         df_failed_range,
+        df_failed_binary,
         df_failed_aggr,
         df_failed_std,
         df_dup,
         T0_upd,
     ) = aggregate_replicates(
-        T0, T1, T5, ConfigDict.get_parameters()["credibility_range"], args["number_cpu"]
+        T0, T1, T5, ConfigDict.get_parameters(
+        )["credibility_range"], args["number_cpu"]
     )
+    dict_aggr["failed_range"] = df_failed_range.shape[0]
+    dict_aggr["failed_binary"] = df_failed_binary.shape[0]
+    dict_aggr["failed_aggr"] = df_failed_aggr.shape[0]
+    dict_aggr["failed_std"] = df_failed_std.shape[0]
+    dict_aggr["duplicates"] = df_dup.shape[0]
+    dict_report["aggregate_values"] = dict_aggr
     write_tmp_output(
         output_dir,
         df_aggr,
         df_failed_range,
+        df_failed_binary,
         df_failed_aggr,
         df_failed_std,
         df_dup,
         T0_upd,
     )
-
-    print(f"Replicate aggregation took {time.time() - start:.08} seconds.")
+    run_time = time.time() - start
+    dict_report["run_time"] = run_time
+    save_run_report(args, dict_report, "aggregate_values")
+    print(f"Replicate aggregation took {run_time:.08} seconds.")
     print(f"Replicate aggregation done.")
 
 

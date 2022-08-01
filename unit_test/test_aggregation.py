@@ -60,6 +60,7 @@ class AggregationTests(unittest.TestCase):
         (
             df_aggr,
             df_failed_range,
+            df_failed_binary,
             df_failed_aggr,
             df_failed_std,
             df_dup,
@@ -75,6 +76,14 @@ class AggregationTests(unittest.TestCase):
             ]
         ].reset_index(drop=True)
         df_failed_range = df_failed_range[
+            [
+                "input_compound_id",
+                "input_assay_id",
+                "standard_qualifier",
+                "standard_value",
+            ]
+        ].reset_index(drop=True)
+        df_failed_binary = df_failed_binary[
             [
                 "input_compound_id",
                 "input_assay_id",

@@ -1,0 +1,12 @@
+{
+    "assay_file": "tests/w_cat/results_tmp/aggregation/T0_upd.csv",
+    "activity_file": "tests/w_cat/results_tmp/aggregation/T4r.csv",
+    "catalog_file": "input/w_cat/T_cat.csv",
+    "config_file": "data_prep/config/example_parameters.json",
+    "key_file": "data_prep/config/example_key.json",
+    "output_dir": "tests",
+    "run_name": "w_cat",
+    "number_cpu": 4,
+    "ref_hash": null,
+    "non_interactive": true
+}

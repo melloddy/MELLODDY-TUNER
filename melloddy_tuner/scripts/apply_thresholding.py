@@ -4,6 +4,7 @@ import json
 import argparse
 import logging
 from pathlib import Path
+from sys import prefix
 import time
 from typing import Tuple
 
@@ -22,6 +23,7 @@ from melloddy_tuner.utils.helper import (
     read_input_file,
     create_log_files,
     save_df_as_csv,
+    save_run_report,
 )
 from melloddy_tuner.utils.config import ConfigDict
 from multiprocessing import Pool
@@ -52,6 +54,12 @@ def init_arg_parser():
         type=str,
         help="path of the activity data file T4r",
         required=True,
+    )
+    parser.add_argument(
+        "-ct",
+        "--catalog_file",
+        type=str,
+        help="path of the reference catalog  file T_cat"
     )
     parser.add_argument(
         "-c", "--config_file", type=str, help="path of the config file", required=True
@@ -299,6 +307,24 @@ def get_thresholds_ADME(df_assay):
 
     return l_thresh
 
+def get_thresholds_CATALOG (df_assay):
+     # collect expert thresholds
+    columns_expert_threshold = [
+        "expert_threshold_1",
+        "expert_threshold_2",
+        "expert_threshold_3",
+        "expert_threshold_4",
+        "expert_threshold_5",
+    ]
+    l_thresh_expert = [df_assay[column].iloc[0] for column in columns_expert_threshold]
+    l_thresh_expert = [i for i in l_thresh_expert if not math.isnan(i)]
+    # add threshold name 'expert'
+    l_thresh_expert = [(i, "aux_low") if i == 4.53 else (i, "expert") for i in l_thresh_expert]
+    # l_thresh_expert = [(i, "aux_low")  for i in l_thresh_expert if i == "4.5"]
+    
+    
+    return l_thresh_expert
+
 
 def apply_thresholding(
     df_assay, assay_type, thresh, direction, columns_T4c, columns_T3c
@@ -327,7 +353,7 @@ def apply_thresholding(
     tmp_T3c["threshold_method"] = threshold_method
     tmp_T3c["direction"] = direction
 
-    if tmp_T3c["assay_type"].iloc[0] == "AUX_HTS" or threshold_method in [
+    if tmp_T3c["assay_type"].iloc[0] == "AUX_HTS" or tmp_T3c["assay_type"].iloc[0] == "AUX_PL" or threshold_method in [
         "aux_low",
         "aux_high",
     ]:
@@ -358,9 +384,11 @@ def calculate_single_assay(df_tuple) -> list:
     # Initialize T3c, T4c dataframes
     columns_T3c = [
         "input_assay_id",
+        "catalog_assay_id",
         "assay_type",
         "variance_quorum_OK",
         "use_in_regression",
+        "is_binary",
         "is_auxiliary",
         "threshold",
         "threshold_method",
@@ -377,43 +405,64 @@ def calculate_single_assay(df_tuple) -> list:
     ]
     df_T3c = pd.DataFrame(columns=columns_T3c)
     df_T4c = pd.DataFrame(columns=columns_T4c)
-
     tmp_assay = df_tuple[1]
-    assay_type = tmp_assay["assay_type"].iloc[0]
-    l_thresh = []
-    if assay_type in ["OTHER", "PANEL"]:
-        l_thresh = get_thresholds_dose_response(
-            tmp_assay, quorum_num_active, quorum_num_inactive
-        )
-    elif assay_type == "ADME":
-        l_thresh = get_thresholds_ADME(tmp_assay)
-    elif assay_type == "AUX_HTS":
-        l_thresh = [(thresh_HTS, "fixed")]
-    for thresh in l_thresh:
-
-        # Generate new assay instance
+    binary_label = tmp_assay["is_binary"].iloc[0]
+    if binary_label == True:
         tmp_assay.loc[:, "input_assay_id"] = df_tuple[0]
         df_assay = tmp_assay.copy()
-        # Convert standard_value to class_label
-        direction = df_assay["direction"].iloc[0]
-        if assay_type == "AUX_HTS":
-            T4c_assay, T3c_assay = apply_thresholding(
-                df_assay, assay_type, thresh, direction, columns_T4c, columns_T3c
-            )
-        else:
-            if direction != "low":
-                direction = "high"
-            T4c_assay, T3c_assay = apply_thresholding(
-                df_assay, assay_type, thresh, direction, columns_T4c, columns_T3c
-            )
+        values = df_assay["standard_value"].values
 
-        df_T4c = df_T4c.append(T4c_assay)
+            # build T4c
+        df_assay["class_label"] = values
+        df_assay["threshold"] = 0
+        T4c_assay = df_assay[columns_T4c]
+        # build T3c
+        tmp_T3c = df_assay.head(1).copy()
+        tmp_T3c["threshold_method"] = "expert"
+        tmp_T3c["direction"] = None
+        if tmp_T3c["assay_type"].iloc[0] == "AUX_HTS" or tmp_T3c["assay_type"].iloc[0] == "AUX_PL":
+            tmp_T3c["is_auxiliary"] = True
+        else:
+            tmp_T3c["is_auxiliary"] = False
+        T3c_assay = tmp_T3c[columns_T3c]
         df_T3c = df_T3c.append(T3c_assay)
+        df_T4c = df_T4c.append(T4c_assay)
+    else:
+        assay_type = tmp_assay["assay_type"].iloc[0]
+        l_thresh = []
+        if assay_type in ["OTHER", "NON-CATALOG-PANEL"]:
+            l_thresh = get_thresholds_dose_response(
+                tmp_assay, quorum_num_active, quorum_num_inactive
+            )
+        elif assay_type == "ADME":
+            l_thresh = get_thresholds_ADME(tmp_assay)
+        elif assay_type == "CATALOG-PANEL":
+            l_thresh = get_thresholds_CATALOG(tmp_assay)
+        elif assay_type == "AUX_HTS":
+            l_thresh = [(thresh_HTS, "fixed")]
+        for thresh in l_thresh:
+            # Generate new assay instance
+            tmp_assay.loc[:, "input_assay_id"] = df_tuple[0]
+            df_assay = tmp_assay.copy()
+            # Convert standard_value to class_label
+            direction = df_assay["direction"].iloc[0]
+            if assay_type == "AUX_HTS":
+                T4c_assay, T3c_assay = apply_thresholding(
+                    df_assay, assay_type, thresh, direction, columns_T4c, columns_T3c
+                )
+            else:
+                if direction != "low":
+                    direction = "high"
+                T4c_assay, T3c_assay = apply_thresholding(
+                    df_assay, assay_type, thresh, direction, columns_T4c, columns_T3c
+                )
+            df_T4c = df_T4c.append(T4c_assay)
+            df_T3c = df_T3c.append(T3c_assay)
 
     return df_T4c, df_T3c
 
 
-def run(T0: DataFrame, T4r: DataFrame, num_cpu: int) -> Tuple:
+def run(T0: DataFrame, T4r: DataFrame, T_cat: DataFrame, num_cpu: int) -> Tuple:
     """
     Execute thresholding in parallel
 
@@ -425,6 +474,20 @@ def run(T0: DataFrame, T4r: DataFrame, num_cpu: int) -> Tuple:
     Returns:
         Tuple: T4c, T3c
     """
+    T0.loc[T0.assay_type == "CATALOG-PANEL", [
+        "expert_threshold_1",
+        "expert_threshold_2",
+        "expert_threshold_3",
+        "expert_threshold_4",
+        "expert_threshold_5",
+    ]
+    ] = T_cat.loc[0,[
+        "expert_threshold_1",
+        "expert_threshold_2",
+        "expert_threshold_3",
+        "expert_threshold_4",
+        "expert_threshold_5",
+    ]].values
     T0_failed = T0[T0.variance_quorum_OK == False].copy()
     T0_passed = T0[T0.variance_quorum_OK == True].copy()
     df = T0_passed.merge(T4r, on="input_assay_id", how="left")
@@ -441,6 +504,7 @@ def run(T0: DataFrame, T4r: DataFrame, num_cpu: int) -> Tuple:
     df_T4c, df_T3c = zip(*df_thres)
     df_T4c = pd.concat(df_T4c)
     df_T3c = pd.concat(df_T3c)
+    
     df_T3c = pd.concat([df_T3c, T0_failed], ignore_index=True)
     df_T3c.sort_values("input_assay_id", inplace=True)
     df_T4c.sort_values("input_assay_id", inplace=True)
@@ -455,6 +519,12 @@ def run(T0: DataFrame, T4r: DataFrame, num_cpu: int) -> Tuple:
         on=["input_assay_id", "threshold"],
         how="left",
     )
+    # get catalog task id
+
+    meta_col =  [col for col in T_cat.columns if 'META' in col]
+    sel_col = ["catalog_assay_id", "catalog_task_id", "threshold", "threshold_method"]
+    df_T3c = df_T3c.merge(T_cat[sel_col + meta_col], on=["catalog_assay_id",  "threshold", "threshold_method"], how="left")
+
     return df_T4c, df_T3c
 
 
@@ -499,7 +569,8 @@ def main(args):
         df_T3c (DataFrame): dataframe containing classification threshold definitions
     """
     start = time.time()
-
+    dict_report = {}
+    dict_thresh = {}
     if args["non_interactive"] is True:
         overwriting = True
     else:
@@ -510,7 +581,7 @@ def main(args):
     print("Consistency checks of config and key files.")
     hash_reference_set.main(args)
     print("Start thresholding.")
-
+    dict_report["run_parameters"] = args
     # Load files
     output_dir = prepare(args, overwriting)
     T0 = read_input_file(args["assay_file"])
@@ -518,21 +589,29 @@ def main(args):
     T4r = read_input_file(args["activity_file"])
     # T4r = T4r.astype({'input_assay_id': 'str'})
     # Merge T0 and T4r on input_assay_id
-
-    df_T4c, df_T3c = run(T0, T4r, num_cpu)
+    T_cat = read_input_file(args["catalog_file"])
+   
+    df_T4c, df_T3c = run(T0, T4r, T_cat, num_cpu)
+    T0_meta_col = [col for col in T0.columns if 'META' in col]
+    T_cat_meta_col = [col for col in T_cat.columns if 'META' in col]
 
     # Write final dataframes (T4c, T3c)
     columns_T3c = [
         "classification_task_id",
         "input_assay_id",
+        
         "assay_type",
         "variance_quorum_OK",
         "use_in_regression",
+        "is_binary",
         "is_auxiliary",
         "threshold",
         "threshold_method",
         "direction",
-    ]
+        "catalog_assay_id",
+        "catalog_task_id"
+    ] + T0_meta_col + T_cat_meta_col
+
     columns_T4c = [
         "classification_task_id",
         "descriptor_vector_id",
@@ -550,11 +629,17 @@ def main(args):
     # Filter ambiguous class labels
     df_T4c_failed = df_T4c[df_T4c.class_label.isna()]
     df_T4c = df_T4c[~df_T4c.class_label.isna()]
+    dict_thresh["passed_T4c"] = df_T4c.shape[0]
+    dict_thresh["failed_T4c"] =  df_T4c_failed.shape[0]
 
     write_failed_output(output_dir, df_T4c_failed, columns_T4c)
     write_tmp_output(output_dir, df_T4c, df_T3c, columns_T4c, columns_T3c)
+    run_time = time.time() - start
 
-    print(f"Thresholding took {time.time() - start:.08} seconds.")
+    dict_report["apply_thresholding"] = dict_thresh
+    dict_report["run_time"] = run_time
+    save_run_report(args, dict_report, "apply_thresholding")
+    print(f"Thresholding took {run_time:.08} seconds.")
     print(f"Thresholding done.")
 
 

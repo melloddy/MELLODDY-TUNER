@@ -1,0 +1,12 @@
+{
+    "classification_activity_file": "tests/w_cat/results_tmp/thresholding/T4c.csv",
+    "classification_weight_table": "tests/w_cat/results_tmp/thresholding/T3c.csv",
+    "catalog_file": "input/w_cat/T_cat.csv",
+    "mapping_table_T5": "tests/w_cat/mapping_table/T5.csv",
+    "config_file": "data_prep/config/example_parameters.json",
+    "key_file": "data_prep/config/example_key.json",
+    "output_dir": "tests",
+    "run_name": "w_cat",
+    "ref_hash": null,
+    "non_interactive": true
+}

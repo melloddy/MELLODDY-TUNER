@@ -7,11 +7,16 @@
     - [Clone git repository](#clone-git-repository)
     - [Create enviroment](#create-enviroment)
   - [Package Installation](#package-installation)
-- [Input and Output Files for Year 2](#input-and-output-files-for-year-2)
-  - [Preparation of Input Files (version year 2)](#preparation-of-input-files-version-year-2)
+- [Input and Output Files for Year 3](#input-and-output-files-for-year-3)
+  - [Preparation of Input Files (version year 3)](#preparation-of-input-files-version-year-3)
+    - [T0 weight table (T0) (Required column)](#t0-weight-table-t0-required-column)
+    - [T1 activity file](#t1-activity-file)
+    - [T2 structure file](#t2-structure-file)
   - [Expected Output Files](#expected-output-files)
 - [1. Run Data Prepration Script](#1-run-data-prepration-script)
     - [`prepare_4_training`](#prepare_4_training)
+  - [`prepare_structure_data`](#prepare_structure_data)
+  - [`prepare_activity_data`](#prepare_activity_data)
   - [`prepare_4_prediction`](#prepare_4_prediction)
 - [2 Individual scripts](#2-individual-scripts)
   - [Input file paths definition](#input-file-paths-definition)
@@ -24,8 +29,7 @@
   - [2.6 classification tasks filtering](#26-classification-tasks-filtering)
   - [2.7 regression tasks filtering](#27-regression-tasks-filtering)
   - [2.8 `make_matrices`](#28-make_matrices)
-- [3 Additional Features](#3-additional-features)
-  - [Retrieve high-entropy bits from given structure file](#retrieve-high-entropy-bits-from-given-structure-file)
+  - [2.9 `make_folders_s3`](#29-make_folders_s3)
 - [Parameter definitions](#parameter-definitions)
     - [standardization](#standardization)
     - [fingerprint](#fingerprint)
@@ -49,7 +53,7 @@
 
 # Installation
 
-Version: **`2.1.3`**
+Version: **`3.0.2`**
 ## Requirements
 The data preprocessing script requires:
 1. Python 3.8 or higher
@@ -60,9 +64,9 @@ The data preprocessing script requires:
 ## Setup the environment
 
 ### Clone git repository
-First, clone the git repository from the MELLODDY github repository:
+First, clone the git repository from the MELLODDY gitlab repository:
 ```
-git clone https://github.com/melloddy/MELLODDY-TUNER.git
+git clone git@git.infra.melloddy.eu:wp1/data_prep.git
 ```
 ### Create enviroment 
 
@@ -88,51 +92,63 @@ pip install -e .
 ```
 Make sure that the current version is installed.
 
-# Input and Output Files for Year 2
+# Input and Output Files for Year 3
 
-## Preparation of Input Files (version year 2)
+## Preparation of Input Files (version year 3)
 
-You find the public example datasets here:
+The following datasets can be generated with MELLODDY-TUNERfor the year 3 federated run:
 
-https://github.com/melloddy/datasets
+1. **without** auxiliary data 
 
-The following datasets will be used in the year 2 federated run:
+    *a)* **cls**: Classification data
+
+    *b)* **reg**: Regression data
+
+    *c)* **hybrid**: Classification & regression data
 
 
-*a)* **cls**: Classification data **without** auxiliarydata
+2. **with** auxiliary data (from HTS, images)
 
-*b)* **reg**: Regression data **without** auxiliary data 
+    *a)* **cls**: Classification data
 
-*a)* **clsaux**: Classification data **with** auxiliary data (Single-concentration data supported, *image data not tested*)
+    ~~*b)* **reg**: Regression data~~
 
-The pharma partner will prepare two T0/T1/T2 file sets, one with auxiliary data, and one without. Both are then processed with MELLODDY TUNER.
+    *c)* **hybrid**: Classification & regression data
 
-The input files contain information about structures (T2) and activity data of these structures (T1) in certain assays.\
-A weight table file describes the input assays and their corresponding weights in multi-class prediction setup (T0).\
+Each pharma partner will needs to prepare:
+
+1. Assay mapping/weight table **T0** prepared according to the data preparation manual.
+2. Actvity data file **T1** linking information about activity via assay and compound identifiers.
+3. Comprehensive structure file **T2** containing compound identifier and SMILES strings of all compounds present in T1.
+
+*NEW in YEAR 3*: The script can handle multiple T0 and T1 files and concatenate these. Make sure that you do not have duplicated identifiers. 
+
 Rules and guidelines to extract data from in-house databases can be found in the Data Preparation Manual provided by WP1.
 
-To run the preprocessing script, the input files should be in csv format and should contain:
+To run the preprocessing script, the input files should be in csv format and should contain **all** following columns (even if they are empty):
 
 
-**a)** weight table (T0) containing the following columns with headers:\
-**1.**  input_assay_id\
-**2.**  assay_type (allowed types: ADME, OTHER, PANEL, AUX_HTS)\
-**3.**  use_in_regression (True or False)\
-**4.**  expert_threshold_1, expert_threshold_2, expert_threshold_3, expert_threshold_4, expert_threshold_5 (up to 5 user-defined thresholds to be applied for classification)\
-**5.**  direction (high or low)
-
-**b)** activity file (T1) containing 3 columns with the headers:\
-**1.** input_compound_id\
-**2.** input_assay_id\
-**3.** standard_qualifier (allowed qualifiers: '<', '<=', '<<', '>', '>=', '>>', '=', '~')\
-**4.** standard_value  (the numeric value of the observation, scaled accordingly)
-
-**c)** structure file (T2) containing 2 columns with the headers:\
-**1.** input_compound_id\
-**2.** smiles
+### T0 weight table (T0) (Required column) 
 
 
 
+| input_assay_id |assay_type|use_in_regression | is_binary | expert_threshold_1|expert_threshold_2|expert_threshold_3|expert_threshold_4|expert_threshold_5|direction|catalog_assay_id|parent_assay_id|
+|-----------| ----------- | ----------- | ----------- |-----------|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+|**needs to be unique**| **not empty** | **not empty** | **not empty** |*optional*|*optional*|*optional*|*optional*|*optional*|*optional*|*optional*|*optional*|
+
+
+
+### T1 activity file 
+
+| input_compound_id |input_assay_id|standard_qualifier | standard_value | 
+|-----------| ----------- | ----------- | ----------- |
+|**not empty** | **not empty**  | *defined values allowed* | **not empty**  |
+
+### T2 structure file 
+
+| input_compound_id |smiles|
+|-----------| ----------- |
+|**needs to be unique**| **not empty**  |
 
 
 An example configuration and key file for standardization is provided in:
@@ -160,24 +176,31 @@ The "reference dataset" provided under `unit_test/refeence_files/reference_set.c
 
 ## Expected Output Files
 
-Partners should run the pipeline with two datasets: (1) one **without** auxiliary data, (2) and one **with** auxiliary data.\
+Partners should run the pipeline with two datasets: (1) one **without** auxiliary data (`using_auxiliary == no`), (2) and one **with** auxiliary data (`using_auxiliary == yes`).\
 You should have two defined output directories and the `matrices` folder containing subfolder(s):
 
-| MELLODDY TUNER run | matrices subfolder | filename |  cls | reg | clsaux |
-| ----------- | ----------- |----------- |-----------|-----------|-----------|
-| **without** auxiliary data |**cls** | cls_T11_x.npz|X|||
-|  || cls_T11_x_fold_vector.npy|X|||
-|  || cls_T10_y.npz |X|||
-|  || cls_weights.csv|X|||
-| |**reg**| reg_T11_x.npz||X||
-|  || reg_T11_x_fold_vector.npy||X||
-|  || reg_T10_y.npy||X||
-|  || reg_T10_censor_y.npy||X||
-|  || reg_weights.csv||X||
-| **with** auxiliary data |**clsaux**|clsaux_T11_x.npz|||X|
-|  || clsaux_T11_x_fold_vector.npy|||X|
-|  || clsaux_T10_y.npz|||X|
-|  || clsaux_weights.csv|||X|
+| MELLODDY TUNER run | matrices subfolder | filename |  cls | reg |
+| ----------- | ----------- |----------- |-----------|-----------|
+| **wo_aux**|**cls** | cls_T11_x.npz|X||
+|  || cls_T11_x_fold_vector.npy|X||
+|  || cls_T10_y.npz |X||
+|  || cls_weights.csv|X||
+| |**reg**| reg_T11_x.npz||X|
+|  || reg_T11_x_fold_vector.npy||X|
+|  || reg_T10_y.npy||X|
+|  || reg_T10_censor_y.npy||X|
+|  || reg_weights.csv||X|
+| |**hyb**| hyb_T11_x.npz|X||
+|  || hyb_T11_x_fold_vector.npy|X||
+|  || hyb_cls_T10_y.npz |X||
+|  || hyb_cls_weights.csv|X||
+|  || hyb_reg_T10_y.npy||X|
+|  || hyb_reg_T10_censor_y.npy||X|
+|  || hyb_reg_weights.csv||X|
+| **w_aux** |**clsaux** | clsaux_T11_x.npz|X||
+|  || clsaux_T11_x_fold_vector.npy|X||
+|  || clsaux_T10_y.npz |X||
+|  || clsaux_weights.csv|X||
 
 
 
@@ -201,11 +224,26 @@ apply_thresholding  # apply thresholding to classification data
 filter_classification_data  # filter classification tasks
 filter_regression_data  # filter regression tasks
 make_matrices           # create sparse matrices from dataframes
+make_folders_s3       # creates folder structure ready to upload to S3
 prepare_4_training     # Run the full pipeline to process data for training
 prepare_4_prediction    # Run the full pipeline to process data for prediction
+prepare_structure_data # Run the structure preparation pipeline (only structure related steps)
+prepare_activity_data # Run the activity data preparation pipeline (after prepare_structure_data, only activity data related steps)
 } 
 
 ```
+
+**NEW in Year 3**: You execute all subcommands with a given `run_parameters.json` file instead of defining everything as arguments. The script will also automatically generate these json files when running the scripts with flags.
+For example:
+
+```
+tunercli prepare_4_training --run_parameters config/run_parameters/pipeline.json
+```
+Multiple run_parameter json files can be found in `config/run_parameters/`.
+
+Each execution results in a **run_report** which is automatically generated in
+`output_dir/run_name/<DATE>_subcommand_run_report.json`. This report contains the run parameters, statistics about the preprocessing steps and information about passed/failed sanity checks.
+
 
 All subcommands can be executed individually or in pipelines suited for training(`prepare_4_training`) or prediction (`prepare_4_prediction`) processing.
 
@@ -219,26 +257,28 @@ To standardize and prepare your input data and create ML-ready files, run the fo
 **5.** path to the key file (--key_file)\
 **6.** path of the output directory, where all output files will be stored (--output_dir)\
 **7.** user-defined name of your current run (--run_name)\
-**8.** tag to identify data without (`cls`) or with auxiliary data (`clsaux`)\
+**8.** tag `using_auxiliary` to identify dataset without (`no`) or with auxiliary data (`yes`)\
 **9.** Folding method to assign test/validation/test splits. Choices: **`scaffold`** (**must be used in year 2!**) or `lsh` (year 1)\
 **10.** (Optional) Number of CPUs to use during the execution of the script (default: 1) (--number_cpu)\
 **11.** (Optional) JSON file with a reference hash key to ensure usage of the same paramters between different users. (--ref_hash)\
 **12.** (Optional) Non-interactive mode for cluster/server runs.(--non_interactive) \
 
+
+
 As an example, you can prepare your data for training by executing tunercli prepare_4_training:
 ```
-tunercli prepare_4_training \
---structure_file {path/to/your/structure_file_T2.csv}\
---activity_file {/path/to/your/activity_data_file_T1.csv}\
---weight_table {/path/to/your/weight_table_T0.csv}\
---config_file {/path/to/the/distributed/parameters.json}\
---key_file {/path/to/the/distributed/key.json}\
---output_dir {path/to/the/output_directory}\
---run_name {name of your current run}\
---tag {cls or clsaux}\
---folding_method {scaffold or lsh}\
---number_cpu {number of CPUs to use}\
---ref_hash {path/to/the/provided/ref_hash.json}\
+tunercli prepare_4_training 
+--structure_file {path/to/your/structure_file_T2.csv}
+--activity_file {/path/to/your/activity_data_file_T1.csv}
+--weight_table {/path/to/your/weight_table_T0.csv}
+--config_file {/path/to/the/distributed/parameters.json}
+--key_file {/path/to/the/distributed/key.json}
+--output_dir {path/to/the/output_directory}
+--run_name {name of your current run}
+--using_auxiliary {no or yes}
+--folding_method {scaffold or lsh}
+--number_cpu {number of CPUs to use}
+--ref_hash {path/to/the/provided/ref_hash.json}
 
 ```
 
@@ -248,11 +288,52 @@ path/to/the/output_directory/run_name/results_tmp       # contain intermediate r
 path/to/the/output_directory/run_name/results           # contain the final dataframe files with continuous IDs (T10c_cont, T10r_cont, T6_cont).
 path/to/the/output_directory/run_name/mapping_table     # contain relevant mapping tables
 path/to/the/output_directory/run_name/reference_set     # contain files for constistency check
-path/to/the/output_directory/run_name/matrices          # contain sparse matrices and meta data files for SparseChem
+path/to/the/output_directory/run_name/wo_aux or w_aux/matrices          # contain sparse matrices and meta data files for SparseChem
 ```
 
+## `prepare_structure_data`
 
+For processing only the structure data (first step), you can run:
 
+```
+tunercli prepare_structure_data 
+--structure_file {path/to/your/structure_file_T2.csv}
+--activity_file {/path/to/your/activity_data_file_T1.csv}
+--weight_table {/path/to/your/weight_table_T0.csv}
+--config_file {/path/to/the/distributed/parameters.json}
+--key_file {/path/to/the/distributed/key.json}
+--output_dir {path/to/the/output_directory}
+--run_name {name of your current run}
+--using_auxiliary {no or yes}
+--folding_method {scaffold or lsh}
+--number_cpu {number of CPUs to use}
+--ref_hash {path/to/the/provided/ref_hash.json}
+
+```
+
+This will process the input structures only and is required before you prepare your activity data.
+
+## `prepare_activity_data`
+
+For processing only the activity data (second step), you can run:
+
+```
+tunercli prepare_activity_data 
+--mapping_table path/to/your/mapping_table/T5.csv
+--T6_file path/to/your/mapping_table/T6.csv
+--activity_files path/to/your/T1.csv
+--weight_tables path/to/your/T0.csv
+--catalog_file path/to/reference-file/T_cat.csv
+--config_file {/path/to/the/distributed/parameters.json}
+--key_file {/path/to/the/distributed/key.json}
+--output_dir {path/to/the/output_directory}
+--run_name {name of your current run}
+--using_auxiliary {no or yes}
+--number_cpu {number of CPUs to use}
+--ref_hash {path/to/the/provided/ref_hash.json}
+}
+```
+After executing both steps sequentially, you processed all your data ready for SparseChem.
 
 ## `prepare_4_prediction` 
 
@@ -584,26 +665,35 @@ tunercli make_matrices  --structure_file $t6 \
                         --key_file $key \
                         --output_dir $outdir \
                         --run_name $run_name \
-                        --tag {cls or clsaux} \
+                        --using_auxiliary {no or yes} \
                         --non_interactive
 #                        --ref_hash $ref 
 ```
 
-`--tag cls` is suitable to use when the tuner input files do not contain auxiliary data. The cls tag will ensure the creation of the cls and reg subdirectories: 
+`--using_auxiliary no` is suitable to use when the tuner input files do not contain auxiliary data. The `--using_auxiliary no` will ensure the creation of the cls and reg subdirectories: 
 
 ```
 output_dir/run_name/matrices/
+├──wo_aux
     ├── cls/
     │     ├── cls_T10_y.npz
     │     ├── cls_T11_fold_vector.npy
     │     ├── cls_T11_x.npz
     │     └── cls_weights.csv    
-    └── reg/
-          ├── reg_T10_censor_y.npz
-          ├── reg_T10_y.npz
-          ├── reg_T11_fold_vector.npy
-          ├── reg_T11_x.npz
-          └── weights_reg.csv
+    ├── reg/
+    │     ├── reg_T10_censor_y.npz
+    │     ├── reg_T10_y.npz
+    │     ├── reg_T11_fold_vector.npy
+    │     ├── reg_T11_x.npz
+    │     └── reg_weights.csv    
+    └── hyb/
+          ├── hyb_cls_T10_y.npz
+          ├── hyb_T11_x.npz
+          ├── hyb_T11_fold_vector.npy
+          ├── hyb_cls_weights.csv
+          ├── hyb_reg_T10_censor_y.npz
+          ├── hyb_reg_T10_y.npz
+          └── hyb_reg_weights.csv
 
 output_dir/run_name/results
 ├── T10c_cont.csv
@@ -612,14 +702,16 @@ output_dir/run_name/results
 
 ```
 
-Or produces for data with aux. data (`--tag clsaux`): 
+Or produces for data with aux. data (`--using_auxiliary yes`): 
 ```
 output_dir/run_name/matrices/
-    └── clsaux/
-          ├── clsaux_T10_y.npz
-          ├── clsaux_T11_fold_vector.npy
-          ├── clsaux_T11_x.npz
-          └── clsaux_weights.csv    
+├──w_aux
+    ├── clsaux/
+       ├── clsaux_T10_y.npz
+       ├── clsaux_T11_fold_vector.npy
+       ├── clsaux_T11_x.npz
+       └── clsaux_weights.csv    
+    
 
 
 output_dir/run_name/results
@@ -627,10 +719,26 @@ output_dir/run_name/results
 ├── T10r_cont.csv
 └── T6_cont.csv
 ```
-# 3 Additional Features
 
-## Retrieve high-entropy bits from given structure file
-(will be added in the next version)
+
+## 2.9 `make_folders_s3`
+Script `make_folders_s3` creates the required folders for S3 bucket.
+
+
+For example, you can run:
+
+```
+tunercli make_folders_s3  --config_file $param \
+                        --key_file $key \
+                        --output_dir $outdir \
+                        --run_name $run_name \
+                        --using_auxiliary {no or yes} \
+                        --non_interactive
+#                        --ref_hash $ref 
+```
+
+`--using_auxiliary no` is suitable to use when the tuner input files do not contain auxiliary data (`cls`, `reg` and `hyb` are considered). Or produces for data with auxiliary data (`--using_auxiliary yes`) to create `clsaux` subfolders.
+
 
 
 # Parameter definitions

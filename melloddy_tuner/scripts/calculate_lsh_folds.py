@@ -31,6 +31,7 @@ from melloddy_tuner.utils.helper import (
     make_dir,
     read_input_file,
     save_df_as_csv,
+    save_run_report
 )
 from pandas import DataFrame
 import pandas as pd
@@ -312,6 +313,9 @@ def main(args: dict = None):
         args (dict): argparser dict containing relevant
     """
     start = time.time()
+    dict_report = {}
+    passed_l = []
+
     if args is None:
         args = vars(init_arg_parser())
 
@@ -324,7 +328,9 @@ def main(args: dict = None):
     load_key(args)
     print("Consistency checks of config and key files.")
     hash_reference_set.main(args)
+    dict_report["run_parameters"] = args    
     print("Start calculating descriptors and assign LSH folds.")
+    dict_fold = {}
     output_dir_lsh, mapping_table_dir, dt = prepare(args, overwriting)
 
     input_file = args["structure_file"]
@@ -333,12 +339,15 @@ def main(args: dict = None):
     dupl_file = os.path.join(output_dir_lsh, "T2_descriptors_lsh.DUPLICATES.csv")
     mapping_file_T5 = os.path.join(mapping_table_dir, "T5.csv")
     mapping_file_T6 = os.path.join(mapping_table_dir, "T6.csv")
-
+    
     df = pd.read_csv(input_file)
     df_processed, df_failed = dt.process_dataframe(df)
     df_processed.to_csv(output_file, index=False)
     df_failed.to_csv(error_file, index=False)
+    dict_fold["failed_folds"] = df_failed.shape[0]
     df_grouped, df_desc_dupl = format_dataframe(df_processed)
+    dict_fold["folds"] = df_grouped.shape[0]
+    dict_fold["duplicates"] = df_desc_dupl.shape[0]
     # col_T5 = ["input_compound_id", "fold_id"]
     # df_T5 = pd.merge(df_processed[col_T5], df_grouped[['input_compound_id', 'descriptor_vector_id', 'fold_id']], on=[
     #                 "input_compound_id", "fold_id"], how="left")
@@ -352,8 +361,13 @@ def main(args: dict = None):
     df_desc_dupl.to_csv(dupl_file, index=False)
     df_T5.to_csv(mapping_file_T5, index=False)
     df_T6.to_csv(mapping_file_T6, index=False)
+    
     end = time.time()
-    print(f"Fingerprint calculation and LSH folding took {end - start:.08} seconds.")
+    run_time = end - start
+    dict_report["scaffold_folds"] = dict_fold
+    dict_report["run_time"] = run_time
+    save_run_report(args, dict_report, mode="assign_lsh_folds")
+    print(f"Fingerprint calculation and LSH folding took {run_time:.08} seconds.")
     print(f"Descriptor calculation and LSH folding done.")
     # df = read_input_file(args["structure_file"])
     # ecfp = calc_desc(df, num_cpu)

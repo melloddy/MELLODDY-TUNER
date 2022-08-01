@@ -14,7 +14,11 @@
     "nfolds": 5
   },
   "credibility_range": {
-    "PANEL": {
+    "NON-CATALOG-PANEL": {
+      "min": 3.0,
+      "max": 10.0
+    },
+    "CATALOG-PANEL": {
       "min": 3.0,
       "max": 10.0
     },
@@ -40,7 +44,7 @@
         "num_total": 50,
         "num_uncensored_total": 25
       },
-      "PANEL": {
+      "NON-CATALOG-PANEL": {
         "num_total": 50,
         "num_uncensored_total": 25
       },
@@ -58,7 +62,7 @@
         "num_active_total": 25,
         "num_inactive_total": 25
       },
-      "PANEL": {
+      "NON-CATALOG-PANEL": {
         "num_active_total": 25,
         "num_inactive_total": 25
       },
@@ -69,8 +73,17 @@
       "AUX_HTS": {
         "num_active_total": 10,
         "num_inactive_total": 10000
+      },
+      "AUX_PL": {
+        "num_active_total": 10,
+        "num_inactive_total": 10000
       }
-    }
+    },
+    "CATALOG-PANEL": {
+        "num_total": 400,
+        "num_active_fold_min": 10,
+        "num_inactive_fold_min": 10
+      }
   },
   "evaluation_quorum": {
     "regression": {
@@ -78,7 +91,7 @@
         "num_fold_min": 50,
         "num_uncensored_fold_min": 25
       },
-      "PANEL": {
+      "NON-CATALOG-PANEL": {
         "num_fold_min": 50,
         "num_uncensored_fold_min": 25
       },
@@ -89,6 +102,10 @@
       "AUX_HTS": {
         "num_fold_min": 50,
         "num_uncensored_fold_min": 25
+      },
+      "AUX_PL": {
+        "num_fold_min": 50,
+        "num_uncensored_fold_min": 25
       }
     },
     "classification": {
@@ -96,7 +113,7 @@
         "num_active_fold_min": 10,
         "num_inactive_fold_min": 10
       },
-      "PANEL": {
+      "NON-CATALOG-PANEL": {
         "num_active_fold_min": 10,
         "num_inactive_fold_min": 10
       },
@@ -111,7 +128,8 @@
     }
   },
   "initial_task_weights": {
-    "AUX_HTS": 0.1
+    "AUX_HTS": 0.1,
+    "AUX_PL": 0.1
   },
   "global_thresholds": {
     "AUX_HTS": 3.0
@@ -121,6 +139,9 @@
   },
   "count_task": {
     "count_data_points": 25
+  },
+  "regression_evaluation_task_filter": {
+    "min_standard_deviation": 0.5
   },
   "lsh": {
     "nfolds": 5,

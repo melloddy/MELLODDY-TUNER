@@ -1,0 +1,19 @@
+{
+    "structure_file": "input/w_cat/T2.csv",
+    "activity_files": [
+        "input/w_cat/T1.csv"
+    ],
+    "weight_tables": [
+        "input/w_cat/T0.csv"
+    ],
+    "catalog_file": "input/w_cat/T_cat.csv",
+    "config_file": "data_prep/config/example_parameters.json",
+    "key_file": "data_prep/config/example_key.json",
+    "output_dir": "tests/",
+    "run_name": "w_cat_entire",
+    "using_auxiliary": "no",
+    "number_cpu": 128,
+    "ref_hash": null,
+    "non_interactive": true,
+    "folding_method": "scaffold"
+}

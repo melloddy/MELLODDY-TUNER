@@ -14,6 +14,7 @@ from melloddy_tuner.utils.helper import (
     read_input_file,
     create_log_files,
     save_df_as_csv,
+    save_run_report
 )
 from melloddy_tuner.utils.config import ConfigDict
 
@@ -117,6 +118,8 @@ def filter_regression_tasks(
         T3r["is_auxiliary"] = True
     else:
         T3r["is_auxiliary"] = False
+    # Skip binary data
+    T3r.loc[T3r.is_binary == True, "use_in_regression"] =  False
     # Need to create columns for training_quorum_OK and evaluation_quorum_OK
     T4r["is_uncensored"] = T4r["standard_qualifier"] == "="
     df_counts = (
@@ -138,7 +141,8 @@ def filter_regression_tasks(
         df_counts["num_total"] - df_counts["num_uncensored_total"]
     )
     df = T3r.join(df_counts, on="input_assay_id", how="inner")
-
+    # replace CATALOG-PANEL assays with NON-CATALOG-PANEL
+    df.loc[df.assay_type == "CATALOG-PANEL", "assay_type"] = "NON-CATALOG-PANEL"
     df = filter_on_quorum(df, training_quorum, evaluation_quorum)
 
     # initialize weight columns
@@ -152,6 +156,8 @@ def filter_regression_tasks(
 
     # TODO: calculatre fraction censored
     fraction_censored = df["num_censored_total"] / df["num_total"]
+    # store fraction censored
+    df["fraction_censored"] = fraction_censored
     # clauclation censored_weight, pass the the censored_downweighting disctionary as kayword arguments
     df["censored_weight"] = censored_weight_transformation(
         fraction_censored, **censored_downweighting
@@ -184,6 +190,43 @@ def filter_regression_tasks(
     )
 
     return T10r, T8r, T4r_filtered_out, T4r_dedup
+
+
+def filter_regression_evaluation_tasks(
+    T8r: pd.DataFrame,
+    T10r: pd.DataFrame,
+    regression_evaluation_task_filter: dict,
+) -> pd.DataFrame:
+
+    # introduce new quorum flag
+    T8r['evaluation_stdv_quorum_OK'] = True
+   
+    # get subset of input_assay_id's not in ADME and compute min. standard deviation across folds
+    a_aggregation_IDs = T8r[T8r['assay_type'] != 'ADME'].input_assay_id.values
+    l_filtered_task_IDs = []
+    for agg_ID in a_aggregation_IDs:
+        if get_fold_std_min(agg_ID, T8r, T10r) < regression_evaluation_task_filter["min_standard_deviation"]:
+            l_filtered_task_IDs.append(agg_ID)
+            
+    # reset stdv quorum for filtered tasks
+    T8r.loc[T8r['input_assay_id'].isin(l_filtered_task_IDs), 'evaluation_stdv_quorum_OK'] = False
+    # reset aggregation weight
+    T8r['aggregation_weight'] = 0.0
+    T8r.loc[(T8r['evaluation_quorum_OK']) & (T8r['evaluation_stdv_quorum_OK']), 'aggregation_weight'] = 1.0
+
+    return T8r
+
+
+def get_fold_std_min(agg_ID, T8r, T10r):
+    # returns minimum standard deviation across folds on uncensored datapoints   
+    df_task = T10r[T10r['input_assay_id'] == agg_ID].copy()
+    df_task = df_task[df_task['standard_qualifier'] == '=']    
+    min_size = df_task[['standard_value', 'fold_id']].groupby('fold_id').size().min()
+    if np.isnan(min_size) or min_size < 2:
+        min_std = 0.0
+    else:
+        min_std = df_task[['standard_value', 'fold_id']].groupby('fold_id').agg([('std', np.std)]).values.min()
+    return min_std
 
 
 def censored_weight_transformation(
@@ -288,9 +331,11 @@ def write_tmp_output(
             "direction",
             "training_quorum_OK",
             "evaluation_quorum_OK",
+            "evaluation_stdv_quorum_OK",
             "aggregation_weight",
             "weight",
             "censored_weight",
+            "fraction_censored",
         ],
     )
     save_df_as_csv(
@@ -330,6 +375,8 @@ def main(args):
         DataFrame: Activity file T4r with aggregated values
     """
     start = time.time()
+    dict_report = {}
+    dict_reg = {}
 
     if args["non_interactive"] is True:
         overwriting = True
@@ -339,6 +386,7 @@ def main(args):
     load_key(args)
     print("Consistency checks of config and key files.")
     hash_reference_set.main(args)
+    dict_report["run_parameters"] = args
     print("Start Regression filtering.")
     output_dir = prepare(args, overwriting)
     T0 = read_input_file(args["regression_weight_table"])
@@ -351,10 +399,21 @@ def main(args):
         ConfigDict.get_parameters()["initial_task_weights"],
         ConfigDict.get_parameters()["censored_downweighting"],
     )
+    T8r = filter_regression_evaluation_tasks(
+        T8r,
+        T10r,
+        ConfigDict.get_parameters()["regression_evaluation_task_filter"],
+    )    
     write_tmp_output(output_dir, T10r, T8r, T4r_filtered_out, T4r_dedup)
+    dict_reg["T4r_filtered_out"] = T4r_filtered_out.shape[0]
+    dict_reg["T4r_duplicates"] = T4r_dedup.shape[0]
+    run_time = time.time() - start
 
-    print(f"Replicate aggregation took {time.time() - start:.08} seconds.")
-    print(f"Replicate aggregation done.")
+    dict_report["filter_regression"] = dict_reg
+    dict_report["run_time"] = run_time
+    save_run_report(args, dict_report, "filter_regression")
+    print(f"Regresseion filtering took {run_time:.08} seconds.")
+    print(f"Regresseion filtering done.")
 
 
 if __name__ == "__main__":

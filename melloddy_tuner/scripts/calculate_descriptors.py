@@ -28,6 +28,7 @@ from melloddy_tuner.utils.helper import (
     make_dir,
     read_input_file,
     save_df_as_csv,
+    save_run_report,
 )
 import pandas as pd
 from pandas import DataFrame
@@ -89,6 +90,25 @@ def init_arg_parser():
     return args
 
 
+def prepare_data_transformer(number_cpu: int) -> DfTransformer:
+    method_params = ConfigDict.get_parameters()["fingerprint"]
+    key = SecretDict.get_secrets()["key"]
+    dc = DescriptorCalculator.from_param_dict(
+        secret=key, method_param_dict=method_params, verbosity=0
+    )
+    outcols = ["fp_feat", "fp_val", "success", "error_message"]
+    out_types = ["object", "object", "bool", "object"]
+    return DfTransformer(
+        dc,
+        input_columns={"canonical_smiles": "smiles"},
+        output_columns=outcols,
+        output_types=out_types,
+        success_column="success",
+        nproc=number_cpu,
+        verbosity=0,
+    )
+
+
 def prepare(args: dict, overwriting: bool):
     """Setup run by creating directories and log files.
 
@@ -104,22 +124,7 @@ def prepare(args: dict, overwriting: bool):
     create_log_files(output_dir)
     load_config(args)
     load_key(args)
-    method_params = ConfigDict.get_parameters()["fingerprint"]
-    key = SecretDict.get_secrets()["key"]
-    dc = DescriptorCalculator.from_param_dict(
-        secret=key, method_param_dict=method_params, verbosity=0
-    )
-    outcols = ["fp_feat", "fp_val", "success", "error_message"]
-    out_types = ["object", "object", "bool", "object"]
-    dt = DfTransformer(
-        dc,
-        input_columns={"canonical_smiles": "smiles"},
-        output_columns=outcols,
-        output_types=out_types,
-        success_column="success",
-        nproc=args["number_cpu"],
-        verbosity=0,
-    )
+    dt = prepare_data_transformer(args["number_cpu"])
     return output_dir, dt
 
 
@@ -136,12 +141,14 @@ def run(df, dt):
 
 
 def main(args: dict = None):
-    """Main wrapper to execute descriptor calculation and fold assignment.
+    """Main wrapper to execute descriptor calculation.
 
     Args:
         args (dict): argparser dict containing relevant
     """
     start = time.time()
+    dict_report = {}
+    passed_l = []
     if args is None:
         args = vars(init_arg_parser())
 
@@ -155,25 +162,23 @@ def main(args: dict = None):
     print("Consistency checks of config and key files.")
     hash_reference_set.main(args)
     output_dir, dt = prepare(args, overwriting)
+    dict_report["run_parameters"] = args
 
     print("Start calculating descriptors.")
+    dict_desc = {}
 
     input_file = args["structure_file"]
     output_file = os.path.join(output_dir, "T2_descriptors.csv")
     error_file = os.path.join(output_dir, "T2_descriptors.FAILED.csv")
-    # dupl_file = os.path.join(output_dir, "T2_descriptors.DUPLICATES.csv")
-    # mapping_file_T5 = os.path.join(mapping_table_dir, "T5.csv")
-    # mapping_file_T6 = os.path.join(mapping_table_dir, "T6.csv")
 
     df = pd.read_csv(input_file)
     df_processed, df_failed = dt.process_dataframe(df)
     df_processed.to_csv(output_file, index=False)
     df_failed.to_csv(error_file, index=False)
-
-    # df_T5, df_T6, df_duplicates = format_dataframe(df_processed)
-    # df_duplicates.to_csv(dupl_file, index=False)
-    # df_T5.to_csv(mapping_file_T5, index=False)
-    # df_T6.to_csv(mapping_file_T6, index=False)
+    dict_desc["calc_desc"] = df_processed.shape[0]
+    dict_desc["failed_desc"] = df_failed.shape[0]
+    dict_report["descriptor_calculation"] = dict_desc
+    save_run_report(args, dict_report=dict_report, mode="calc_desc")
     end = time.time()
     print(f"Fingerprint calculation took {end - start:.08} seconds.")
     print(f"Descriptor calculation done.")

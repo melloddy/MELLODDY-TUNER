@@ -1,0 +1,14 @@
+{
+    "structure_file": "tests/w_cat/mapping_table/T6.csv",
+    "activity_file_clf": "tests/w_cat/results_tmp/classification/T10c.csv",
+    "weight_table_clf": "tests/w_cat/results_tmp/classification/T8c.csv",
+    "activity_file_reg": "tests/w_cat/results_tmp/regression/T10r.csv",
+    "weight_table_reg": "tests/w_cat/results_tmp/regression/T8r.csv",
+    "config_file": "data_prep/config/example_parameters.json",
+    "key_file": "data_prep/config/example_key.json",
+    "output_dir": "tests",
+    "run_name": "w_cat",
+    "using_auxiliary": "yes",
+    "ref_hash": null,
+    "non_interactive": true
+}

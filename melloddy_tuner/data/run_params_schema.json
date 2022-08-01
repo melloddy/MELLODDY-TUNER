@@ -1,0 +1,139 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "prepare_4_training": {
+            "type": "object",
+            "properties": {
+                "structure_file": {
+                    "type": "string"
+                },
+                "activity_file": {
+                    "type": "string"
+                },
+                "weight_table": {
+                    "type": "string"
+                },
+                "config_file": {
+                    "type": "string"
+                },
+                "key_file": {
+                    "type": "string"
+                },
+                "output_dir": {
+                    "type": "string"
+                },
+                "run_name": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "number_cpu": {
+                    "oneOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "ref_hash": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "non_interactive": {
+                    "oneOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "folding_method": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "structure_file",
+                "activity_file",
+                "weight_table",
+                "config_file",
+                "key_file",
+                "output_dir",
+                "run_name",
+                "tag",
+                "folding_method"
+            ]
+        },
+        "standardize_smiles": {
+            "type": "object",
+            "properties": {
+                "structure_file": {
+                    "type": "string"
+                },
+                "config_file": {
+                    "type": "string"
+                },
+                "key_file": {
+                    "type": "string"
+                },
+                "output_dir": {
+                    "type": "string"
+                },
+                "run_name": {
+                    "type": "string"
+                },
+                "number_cpu": {
+                    "oneOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "ref_hash": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "non_interactive": {
+                    "oneOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "folding_method": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "structure_file",
+                "config_file",
+                "key_file",
+                "output_dir",
+                "run_name"
+            ]
+        }
+    }
+}

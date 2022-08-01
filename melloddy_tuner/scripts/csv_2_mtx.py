@@ -2,7 +2,6 @@ import argparse
 from argparse import Namespace
 from typing import Tuple
 import pandas as pd
-
 from pandas.core.frame import DataFrame
 import melloddy_tuner
 from melloddy_tuner.utils import hash_reference_set
@@ -15,6 +14,7 @@ from melloddy_tuner.utils.helper import (
     read_input_file,
     save_df_as_csv,
     save_mtx_as_npy,
+    save_run_report,
 )
 
 
@@ -81,10 +81,10 @@ def init_arg_parser() -> Namespace:
         help="path to the reference hash key file provided by the consortium. (ref_hash.json)",
     )
     parser.add_argument(
-        "-t",
-        "--tag",
-        choices=["cls", "clsaux"],
-        help="tag to identify classifcation with or without auxiliary data. Available tags: cls or clsaux",
+        "-aux",
+        "--using_aux",
+        choices=["no", "yes"],
+        help="tag to identify if auxiliary data is used. Available tags: no or yes",
         required=True,
     )
     parser.add_argument(
@@ -333,12 +333,13 @@ def save_csv_output(
     df_T9c = df_T9c.rename(
         columns={
             ("cont_classification_task_id"): "task_id",
+            ("catalog_task_id"): "catalog_id",
             ("assay_type"): "task_type",
             ("weight"): "training_weight",
         }
     )
     df_T9c = df_T9c.dropna(subset=["task_id"]).sort_values("task_id")
-    df_T9c["task_id"] = df_T9c["task_id"].astype(int)
+    df_T9c.loc[:,"task_id"] = df_T9c["task_id"].astype(int)
     df_T9r = df_T9r.rename(
         columns={
             ("cont_regression_task_id"): "task_id",
@@ -347,17 +348,20 @@ def save_csv_output(
         }
     )
     df_T9r = df_T9r.dropna(subset=["task_id"]).sort_values("task_id")
-    df_T9r["task_id"] = df_T9r["task_id"].astype(int)
-    if tag == "cls":
-        out_dir_cls = out_dir / "cls"
+    df_T9r.loc[:,"task_id"] = df_T9r["task_id"].astype(int)
+    if tag == "no":
+        out_dir_wo = out_dir / "wo_aux"
+        out_dir_wo.mkdir(exist_ok=True)
+
+        out_dir_cls = out_dir_wo / "cls"
         out_dir_cls.mkdir(exist_ok=True)
         save_df_as_csv(
             out_dir_cls,
             df_T9c,
             "cls_weights",
-            ["task_id", "task_type", "training_weight", "aggregation_weight"],
+            ["task_id", "catalog_id", "task_type", "training_weight", "aggregation_weight"],
         )
-        out_dir_reg = out_dir / "reg"
+        out_dir_reg = out_dir_wo / "reg"
         out_dir_reg.mkdir(exist_ok=True)
         save_df_as_csv(
             out_dir_reg,
@@ -371,14 +375,56 @@ def save_csv_output(
                 "censored_weight",
             ],
         )
-    if tag == "clsaux":
-        out_dir_clsaux = out_dir / "clsaux"
+        out_dir_hybrid = out_dir_wo / "hyb"
+        out_dir_hybrid.mkdir(exist_ok=True)
+        save_df_as_csv(
+            out_dir_hybrid,
+            df_T9c,
+            "hyb_cls_weights",
+            ["task_id", "catalog_id", "task_type", "training_weight", "aggregation_weight"],
+        )
+        save_df_as_csv(
+            out_dir_hybrid,
+            df_T9r,
+            "hyb_reg_weights",
+            [
+                "task_id",
+                "task_type",
+                "training_weight",
+                "aggregation_weight",
+                "censored_weight",
+            ],
+        )
+    if tag == "yes":
+        out_dir_w = out_dir / "w_aux"
+        out_dir_w.mkdir(exist_ok=True)
+        out_dir_clsaux = out_dir_w / "clsaux"
         out_dir_clsaux.mkdir(exist_ok=True)
         save_df_as_csv(
             out_dir_clsaux,
             df_T9c,
             "clsaux_weights",
-            ["task_id", "task_type", "training_weight", "aggregation_weight"],
+            ["task_id","catalog_id", "task_type", "training_weight", "aggregation_weight"],
+        )
+        out_dir_hybrid = out_dir_w / "hybrid"
+        out_dir_hybrid.mkdir(exist_ok=True)
+        save_df_as_csv(
+            out_dir_hybrid,
+            df_T9c,
+            "hyb_cls_weights",
+            ["task_id", "catalog_id", "task_type", "training_weight", "aggregation_weight"],
+        )
+        save_df_as_csv(
+            out_dir_hybrid,
+            df_T9r,
+            "hyb_reg_weights",
+            [
+                "task_id",
+                "task_type",
+                "training_weight",
+                "aggregation_weight",
+                "censored_weight",
+            ],
         )
 
 
@@ -400,25 +446,48 @@ def save_npy_matrices(
         y_matrix (csr_matrix): csr activity matrix Y
         fold_vector (np.array): fold vector
     """
-    if tag == "cls":
-        out_dir_cls = out_dir / "cls"
+    if tag == "no":
+        out_dir_wo = out_dir / "wo_aux"
+        out_dir_wo.mkdir(exist_ok=True)
+        out_dir_cls = out_dir_wo / "cls"
         out_dir_cls.mkdir(exist_ok=True)
-        save_mtx_as_npy(x_matrix, out_dir_cls, f"{tag}_T11_x")
-        save_mtx_as_npy(fold_vector, out_dir_cls, f"{tag}_T11_fold_vector")
-        save_mtx_as_npy(y_matrix_clf, out_dir_cls, f"{tag}_T10_y")
-        out_dir_reg = out_dir / "reg"
+        save_mtx_as_npy(x_matrix, out_dir_cls, f"cls_T11_x")
+        save_mtx_as_npy(fold_vector, out_dir_cls, f"cls_T11_fold_vector")
+        save_mtx_as_npy(y_matrix_clf, out_dir_cls, f"cls_T10_y")
+        out_dir_reg = out_dir_wo / "reg"
         out_dir_reg.mkdir(exist_ok=True)
         save_mtx_as_npy(x_matrix, out_dir_reg, "reg_T11_x")
         save_mtx_as_npy(fold_vector, out_dir_reg, "reg_T11_fold_vector")
         save_mtx_as_npy(y_matrix_reg, out_dir_reg, "reg_T10_y")
         save_mtx_as_npy(censored_mask, out_dir_reg, "reg_T10_censor_y")
 
-    if tag == "clsaux":
-        out_dir_clsaux = out_dir / "clsaux"
+        out_dir_hyb = out_dir_wo / "hyb"
+        out_dir_hyb.mkdir(exist_ok=True)
+        save_mtx_as_npy(x_matrix, out_dir_hyb, f"hyb_T11_x")
+        save_mtx_as_npy(fold_vector, out_dir_hyb, f"hyb_T11_fold_vector")
+        save_mtx_as_npy(y_matrix_clf, out_dir_hyb, f"hyb_cls_T10_y")
+        save_mtx_as_npy(y_matrix_reg, out_dir_hyb, "hyb_reg_T10_y")
+        save_mtx_as_npy(censored_mask, out_dir_hyb, "hyb_reg_T10_censor_y")
+
+    if tag == "yes":
+        out_dir_w = out_dir / "w_aux"
+        out_dir_w.mkdir(exist_ok=True)
+        out_dir_clsaux = out_dir_w / "clsaux"
         out_dir_clsaux.mkdir(exist_ok=True)
-        save_mtx_as_npy(x_matrix, out_dir_clsaux, f"{tag}_T11_x")
-        save_mtx_as_npy(fold_vector, out_dir_clsaux, f"{tag}_T11_fold_vector")
-        save_mtx_as_npy(y_matrix_clf, out_dir_clsaux, f"{tag}_T10_y")
+        save_mtx_as_npy(x_matrix, out_dir_clsaux, f"clsaux_T11_x")
+        save_mtx_as_npy(fold_vector, out_dir_clsaux, f"clsaux_T11_fold_vector")
+        save_mtx_as_npy(y_matrix_clf, out_dir_clsaux, f"clsaux_T10_y")
+
+        # out_dir_hyb = out_dir_w / "hybrid"
+        # out_dir_hyb.mkdir(exist_ok=True)
+        # save_mtx_as_npy(x_matrix, out_dir_hyb, f"hyb_T11_x")
+        # save_mtx_as_npy(fold_vector, out_dir_hyb, f"hyb_T11_fold_vector")
+        # save_mtx_as_npy(y_matrix_clf, out_dir_hyb, f"hyb_cls_T10_y")
+        # save_mtx_as_npy(y_matrix_reg, out_dir_hyb, "hyb_reg_T10_y")
+        # save_mtx_as_npy(censored_mask, out_dir_hyb, "hyb_reg_T10_censor_y")
+
+
+
 
 
 def map_2_cont_id(data: pd.DataFrame, column_name: str):
@@ -480,6 +549,8 @@ def main(args: dict = None):
     Main function reading input files, executing functions and writing output files.
     """
     start = time.time()
+    dict_report = {}
+    dict_matrices = {}
     if args is None:
         args = vars(init_arg_parser())
 
@@ -491,15 +562,15 @@ def main(args: dict = None):
     load_key(args)
     print("Consistency checks of config and key files.")
     hash_reference_set.main(args)
-
+    dict_report["run_parameters"] =  args
     print("Generate sparse matrices from given dataframes.")
     fp_param = melloddy_tuner.utils.config.parameters.get_parameters()["fingerprint"]
     bit_size = fp_param["fold_size"]
     output_dir, results_dir = prepare(args, overwriting)
-    tag = args["tag"]
+    tag = args["using_auxiliary"]
 
-    if (tag != "cls") and (tag != "clsaux"):
-        print("Please choose a different tag. Only cls or clsaux are allowed.")
+    if (tag != "no") and (tag != "yes"):
+        print("Please choose a different tag. Only no or yes are allowed.")
         exit()
     df_T6 = read_input_file(args["structure_file"])
     df_T10c = read_input_file(args["activity_file_clf"])
@@ -521,7 +592,15 @@ def main(args: dict = None):
     )
     y_matrix_clf.data = np.nan_to_num(y_matrix_clf.data, copy=False)
     y_matrix_clf.eliminate_zeros()
+    dict_matrices["x_matrix_feature_dim"] = x_matrix.shape[1]
+    dict_matrices["x_matrix_compounds"] =  x_matrix.shape[0]
+    dict_matrices["y_matrix_clf_values"] = y_matrix_clf.count_nonzero()
+    dict_matrices["y_matrix_reg_values"] = y_matrix_reg.count_nonzero()
+    dict_matrices["censored_values"] = censored_mask.count_nonzero()
+    dict_matrices["y_matrix_clf_tasks"] = y_matrix_clf.shape[1]
+    dict_matrices["y_matrix_reg_tasks"] = y_matrix_reg.shape[1]
 
+    dict_matrices["catalog_tasks"] =  df_T9c.catalog_task_id.nunique()
     save_npy_matrices(
         output_dir,
         tag,
@@ -532,7 +611,11 @@ def main(args: dict = None):
         censored_mask,
     )
     end = time.time()
-    print(f"Formatting to matrices took {end - start:.08} seconds.")
+    run_time = end - start
+    dict_report["sparse_matrices"] = dict_matrices
+    dict_report["run_time"] = run_time
+    save_run_report(args, dict_report,"sparse_matrices")
+    print(f"Formatting to matrices took {run_time:.08} seconds.")
     print(f"Files are ready for SparseChem.")
 
 

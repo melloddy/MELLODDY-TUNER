@@ -1,0 +1,12 @@
+{
+    "assay_file": "input/w_cat/T0.csv",
+    "activity_file": "input/w_cat/T1.csv",
+    "mapping_table": "tests/w_cat/mapping_table/T5.csv",
+    "config_file": "data_prep/config/example_parameters.json",
+    "key_file": "data_prep/config/example_key.json",
+    "output_dir": "tests",
+    "run_name": "w_cat",
+    "number_cpu": 64,
+    "ref_hash": null,
+    "non_interactive": true
+}

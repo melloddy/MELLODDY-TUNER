@@ -23,6 +23,7 @@ from melloddy_tuner.utils.helper import (
     load_key,
     make_dir,
     create_log_files,
+    save_run_report
 )
 
 
@@ -140,19 +141,24 @@ def main(args: dict = None):
         args (dict): Dictionary of arguments from argparser
 
     """
+    dict_report = {}
+    passed_l = []
+
     start = time.time()
     if args is None:
         args = vars(init_arg_parser())
     output_dir, mapping_table_dir, dt = prepare(args)
 
     hash_reference_set.main(args)
+    dict_report["run_parameters"] = args
 
     print("Start computing folds.")
-
+    dict_fold = {}
     input_file = args["structure_file"]
     output_file = os.path.join(output_dir, "T2_folds.csv")
     error_file = os.path.join(output_dir, "T2_folds.FAILED.csv")
-
+    
+    
     dupl_file = os.path.join(output_dir, "T2_descriptor_vector_id.DUPLICATES.csv")
     mapping_file_T5 = os.path.join(mapping_table_dir, "T5.csv")
     mapping_file_T6 = os.path.join(mapping_table_dir, "T6.csv")
@@ -161,11 +167,17 @@ def main(args: dict = None):
     df_processed, df_failed = dt.process_dataframe(df)
     df_processed.to_csv(output_file, index=False)
     df_failed.to_csv(error_file, index=False)
+    dict_fold["folds"] = df_processed.shape[0]
+    dict_fold["failed_folds"] = df_failed.shape[0]
 
+    
     df_T5, df_T6, df_duplicates = format_dataframe(df_processed)
     df_duplicates.to_csv(dupl_file, index=False)
     df_T5.to_csv(mapping_file_T5, index=False)
     df_T6.to_csv(mapping_file_T6, index=False)
+    dict_fold["duplicates_folds_desc"] = df_duplicates.shape[0]
+    dict_report["scaffold_folds"] = dict_fold
+    save_run_report(args, dict_report, mode="assign_folds")
 
     print(f"Fold calculation took {time.time() - start:.08} seconds.")
     print(f"Fold claculation done.")
