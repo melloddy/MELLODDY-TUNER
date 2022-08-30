@@ -66,7 +66,7 @@ The data preprocessing script requires:
 ### Clone git repository
 First, clone the git repository from the MELLODDY gitlab repository:
 ```
-git clone git@git.infra.melloddy.eu:wp1/data_prep.git
+git clone https://github.com/melloddy/MELLODDY-TUNER.git
 ```
 ### Create enviroment 
 
