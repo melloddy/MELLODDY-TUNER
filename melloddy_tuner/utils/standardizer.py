@@ -96,27 +96,30 @@ class Standardizer(object):
             atom.SetIsotope(0)
         return mol
 
+    def calculate_single(self, smiles: str) -> Tuple:
+        try:
+            smi_clean = self.calculate_single_raising(smiles)
+            return smi_clean, True, None
+        except (TypeError, ValueError, AttributeError) as e:
+            return None, False, str(e)
+
     def calculate_single_raising(self, smiles: str) -> str:
         """
         This function stanrdardizes a single smiles 
         """
-        
         if smiles is nan:
             error = "No smiles entry."
-                raise ValueError( error)
+            raise ValueError(error)
         # Read SMILES and convert it to RDKit mol object.
         mol = MolFromSmiles(smiles) 
         if mol is None:
             raise ValueError("failed to parse smiles {}".format(smiles))
         # check size of the molecule based on the non-hydrogen atom count.
         if mol.GetNumAtoms() >= self.max_num_atoms:
-            error = "number of non-H atoms {0} exceeds limit of {1} for smiles {2}".format(
-                    mol.GetNumAtoms(), self.max_num_atoms, smiles
-                    )
+            error = "number of non-H atoms {0} exceeds limit of {1} for smiles {2}".format(mol.GetNumAtoms(), self.max_num_atoms, smiles)
             raise ValueError(error)
-        mol = rdMolStandardize.ChargeParent(
-            mol
-        )  # standardize molecules using MolVS and RDKit
+        # standardize molecules using MolVS and RDKit
+        mol = rdMolStandardize.ChargeParent(mol)  
         mol = self.isotope_parent(mol)
         if self.include_stereoinfo is False:
             Chem.RemoveStereochemistry(mol)
@@ -129,13 +132,3 @@ class Standardizer(object):
         mol_clean = MolFromSmiles(smi_clean_tmp)
         smi_clean = MolToSmiles(mol_clean)
         return smi_clean
-
-    
-
-    
-    def calculate_single(self, smiles: str) -> Tuple:
-        try:
-            smi_clean = self.calculate_single_raising(smiles)
-            return smi_clean, True, None
-        except (TypeError, ValueError, AttributeError) as e:
-            return None, False, str(e)

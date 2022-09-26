@@ -5,6 +5,7 @@ from typing import Dict, Tuple
 from rdkit.Chem import MolFromSmiles
 from rdkit.Chem.AllChem import GetHashedMorganFingerprint, GetMorganFingerprint
 from scipy.sparse import csr_matrix
+import torch
 
 import numpy as np
 import copy
@@ -171,5 +172,19 @@ class DescriptorCalculator(object):
         fp_feat_scrambled, fp_val = self.get_scrambled_fp(smiles)
         row_ind = np.repeat(0, fp_feat_scrambled.shape[0])
         return csr_matrix((fp_val, (row_ind, fp_feat_scrambled)), shape = (1, self.size))
-        
-                            
+    
+    
+    def calculate_single_torch_coo(self, smiles: str) -> torch.sparse_coo_tensor :
+        """
+        Calculation of Morgan fingerprints (ECFP equivalent) with a given radius as single row torch sparse coo_tensor
+        intended for directly passing to sparsechem
+
+        Args:
+            smiles (str): SMILES string
+
+        Returns:
+            torch sparse_coo_tensor of fingerprint in the given bit width
+        """
+        fp_feat_scrambled, fp_val = self.get_scrambled_fp(smiles)
+        row_ind = np.repeat(0, fp_feat_scrambled.shape[0])
+        return torch.sparse_coo_tensor(indices = np.array([row_ind,fp_feat_scrambled]), values = fp_val, size = (1, self.size),dtype=torch.float)

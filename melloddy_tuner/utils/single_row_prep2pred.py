@@ -1,4 +1,5 @@
-from melloddy_tuner.utils import DescriptorCalculator, Standardizer
+from melloddy_tuner.utils.standardizer import Standardizer
+from melloddy_tuner.utils.descriptor_calculator import DescriptorCalculator
 import json
 import os
 from scipy.sparse import csr_matrix
@@ -41,19 +42,20 @@ class SingleRowPreparator:
     def __init__(self, params, secret, trust_standardization = False, verbosity = 0):
         
         my_params = process_param_input(params)
-        if (not "standardization" in my_params) or (not "fingerprint" in my_params):    
-            raise ValueError("The provided parameters does not contain the required keys \"standardization"\ and \"fingerprint\" ")
         my_secret = process_param_input(secret)
-        if not key in my_secret:
-            raise ValueError("The provided secret dictionary does not contain the required keys \"key\" ")
         self.trust_standardization = trust_standardization
+        if (not "standardization" in my_params) or (not "fingerprint" in my_params):    
+            raise ValueError("The provided parameters does not contain the required keys \"standardization\" and \"fingerprint\" ")
+        if not "key" in my_secret:
+            raise ValueError("The provided secret dictionary does not contain the required keys \"key\" ")
+
         
         if not self.trust_standardization:
             self.standardizer = Standardizer.from_param_dict(my_params["standardization"], verbosity = verbosity)
-        self.descriptor_calc = DescriptorCalculator.from_param_dict(my_secret[key],my_params["fingerprint"], verbosity = verbosity)
+        self.descriptor_calc = DescriptorCalculator.from_param_dict(my_secret["key"],my_params["fingerprint"], verbosity = verbosity)
         
         
-    def process_smiles(self, smiles : str) > csr_matrix:
+    def process_smiles(self, smiles : str) -> csr_matrix:
         if not self.trust_standardization:
-            smiles = self.standardizer.calculate_single(smiles)
-        return self.descriptor_calc.calculate_single_csr(smiles)
+            smiles = self.standardizer.calculate_single_raising(smiles)
+        return self.descriptor_calc.calculate_single_torch_coo(smiles)
