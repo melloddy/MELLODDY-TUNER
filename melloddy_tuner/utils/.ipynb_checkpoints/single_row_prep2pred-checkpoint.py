@@ -1,9 +1,7 @@
-from melloddy_tuner.utils.standardizer import Standardizer
-from melloddy_tuner.utils.descriptor_calculator import DescriptorCalculator
+from melloddy_tuner.utils import DescriptorCalculator, Standardizer
 import json
 import os
 from scipy.sparse import csr_matrix
-import torch
 
 
 def process_param_input(param_input):
@@ -36,22 +34,12 @@ def process_param_input(param_input):
 
 class SingleRowPreparator:
     """
-    This wrapper class contains all functionality to generate prediction ready features for sparsechem prediction for individual compounds as torch sparse coo-tensor
+    This wrapper class contains all functionality to gnerate prediction ready features for sparsechem prediction for individual compounds
+    
     """
     
-    
     def __init__(self, params, secret, trust_standardization = False, verbosity = 0):
-        """
-		Initialize the single row preparator
         
-		Args:
-            params: parameter information for stnadardization and fingerprint calculation 
-                    (dictionary, json encoded dictionary, or the path of a file containing a json encoded dictionary 
-            secret: key information constaining the fingeprint permutationkey 
-                    (dictionary, json encoded dictionary, or the path of a file containing a json encoded dictionary)
-            trust_standardization (bool): Flag whether to assume a smiles input is already standardized
-
-		"""
         my_params = process_param_input(params)
         my_secret = process_param_input(secret)
         self.trust_standardization = trust_standardization
@@ -63,19 +51,10 @@ class SingleRowPreparator:
         
         if not self.trust_standardization:
             self.standardizer = Standardizer.from_param_dict(my_params["standardization"], verbosity = verbosity)
-        self.descriptor_calc = DescriptorCalculator.from_param_dict(my_secret["key"],my_params["fingerprint"], verbosity = verbosity)
+        self.descriptor_calc = DescriptorCalculator.from_param_dict(my_secret[key],my_params["fingerprint"], verbosity = verbosity)
         
         
-    def process_smiles(self, smiles : str) -> torch.tensor:
-        """
-        This function stnadrdaizes a single smiles and computes the fingeprrint features as torch sparse coo-tensor
-        
-        Args:
-             smiles: smiles of the molecule to claculet features for
-	 
-        Returns:
-            torch.tesnor: A torch sparse coo tebnsor of fingeprrint features
-        """
+    def process_smiles(self, smiles : str) -> csr_matrix:
         if not self.trust_standardization:
-            smiles = self.standardizer.calculate_single_raising(smiles)
-        return self.descriptor_calc.calculate_single_torch_coo(smiles)
+            smiles = self.standardizer.calculate_single(smiles)
+        return self.descriptor_calc.calculate_single_csr(smiles)
