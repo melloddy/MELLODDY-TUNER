@@ -174,16 +174,18 @@ class DescriptorCalculator(object):
         return csr_matrix((fp_val, (row_ind, fp_feat_scrambled)), shape = (1, self.size))
     
     
-    def calculate_single_torch_coo(self, smiles: str) -> torch.sparse_coo_tensor :
+    def calculate_single_torch_coo(self, smiles: str) -> torch.tensor :
         """
         Calculation of Morgan fingerprints (ECFP equivalent) with a given radius as single row torch sparse coo_tensor
-        intended for directly passing to sparsechem
+        intended for directly passing to sparsechem. The tensor has torch.float values, as this is required by the 
+		sparsechem network
+		
 
         Args:
             smiles (str): SMILES string
 
         Returns:
-            torch sparse_coo_tensor of fingerprint in the given bit width
+            torch.tensor : torch sparse_coo_tensor of fingerprint in the given bit width
         """
         fp_feat_scrambled, fp_val = self.get_scrambled_fp(smiles)
         row_ind = np.repeat(0, fp_feat_scrambled.shape[0])
