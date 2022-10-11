@@ -6,6 +6,24 @@ from scipy.sparse import csr_matrix
 import torch
 
 
+#json string with structure praration paramaters used in the MELLODDY federated models
+melloddy_structure_prep_params = """
+{
+  "standardization": {
+    "max_num_tautomers": 256,
+    "max_num_atoms": 100,
+    "include_stereoinfo": false
+  },
+  "fingerprint": {
+    "radius": 3,
+    "hashed": true,
+    "fold_size": 32000,
+    "binarized": true
+  }
+}
+"""
+
+
 def process_param_input(param_input):
     """
     This function acceptsy variobale types of paramter input and returns the results as dict
@@ -42,16 +60,15 @@ class SingleRowPreparator:
     
     def __init__(self, params, secret, trust_standardization = False, verbosity = 0):
         """
-		Initialize the single row preparator
+        Initialize the single row preparator
         
-		Args:
+        Args:
             params: parameter information for stnadardization and fingerprint calculation 
                     (dictionary, json encoded dictionary, or the path of a file containing a json encoded dictionary 
             secret: key information constaining the fingeprint permutationkey 
                     (dictionary, json encoded dictionary, or the path of a file containing a json encoded dictionary)
             trust_standardization (bool): Flag whether to assume a smiles input is already standardized
-
-		"""
+        """
         my_params = process_param_input(params)
         my_secret = process_param_input(secret)
         self.trust_standardization = trust_standardization
