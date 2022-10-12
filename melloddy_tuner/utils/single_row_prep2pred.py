@@ -4,7 +4,7 @@ import json
 import os
 from scipy.sparse import csr_matrix
 import torch
-
+from pathlib import Path
 
 #json string with structure praration paramaters used in the MELLODDY federated models
 melloddy_structure_prep_params = """
@@ -24,18 +24,22 @@ melloddy_structure_prep_params = """
 """
 
 
-def process_param_input(param_input):
+def process_param_input(param_input = melloddy_structure_prep_params):
     """
     This function acceptsy variobale types of paramter input and returns the results as dict
     1. if the indupt is a dictionary, it is handed through directly
     2. If the input is a str, it is first ested whether the input is a valid file name. 
        If this is the case it will be first attempted to read  the file in as a json file
     3. If the input is a string, and it is not a valid filename, it will pe attempted to parse this as a json string
-    
+    4. If the param_input is None, it will return the default parameters (melloddy_structure_prep_params as above)
     """
-    if type(param_input) == dict:
+    if isinstance(param_input, dict):
         return(param_input)
-    elif type(param_input) == str:
+    elif isinstance(param_input, Path):
+        with open(param_input) as cnf_f:
+            tmp_dict = json.load(cnf_f)
+            return tmp_dict
+    elif isinstance(param_input, str):
         if os.path.isfile(param_input):
             with open(param_input) as cnf_f:
                 tmp_dict = json.load(cnf_f)
