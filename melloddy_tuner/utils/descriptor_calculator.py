@@ -35,9 +35,8 @@ class DescriptorCalculator(object):
         self.secret = secret
         self.binarize = binarized
         self.verbosity = verbosity
-        self.permuted_ix = DescriptorCalculator.set_permutation(
-            size=self.size, key=self.secret
-        )
+        self.apply_key(secret)
+
 
     # functions enabling pickle
     def __getstate__(self):
@@ -75,6 +74,15 @@ class DescriptorCalculator(object):
         permuted_ix = hashed_ix.argsort().argsort()
         return permuted_ix
 
+    def apply_key(self, key):
+        self.permuted_ix = DescriptorCalculator.set_permutation(
+            size=self.size, key=key)
+    
+    #if for the purpose of object serialization the permutation disct should be deleted
+    def purge_key(self):
+        del self.permuted_ix
+    
+    
     def make_scrambled_lists(self, fp_feat_arr: np.array) -> list:
         """Pseudo-random scrambling with secret.
 
@@ -178,8 +186,7 @@ class DescriptorCalculator(object):
         """
         Calculation of Morgan fingerprints (ECFP equivalent) with a given radius as single row torch sparse coo_tensor
         intended for directly passing to sparsechem. The tensor has torch.float values, as this is required by the 
-		sparsechem network
-		
+        sparsechem network
 
         Args:
             smiles (str): SMILES string
