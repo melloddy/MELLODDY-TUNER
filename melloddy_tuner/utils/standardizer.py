@@ -96,43 +96,54 @@ class Standardizer(object):
             atom.SetIsotope(0)
         return mol
 
-    def calculate_single(self, smiles) -> Tuple:
-
-        if smiles is nan:
-            return None, False, "No smiles entry."
+    def calculate_single(self, smiles: str) -> Tuple:
         try:
-            mol = MolFromSmiles(
-                smiles
-            )  # Read SMILES and convert it to RDKit mol object.
-        except (TypeError, ValueError, AttributeError) as e:
+            smi_clean = self.calculate_single_raising(smiles)
+            return smi_clean, True, None
+        except (MTStandardizerError, TypeError, ValueError, AttributeError) as e:
             return None, False, str(e)
-        # Check, if the input SMILES has been converted into a mol object.
+
+    def calculate_single_raising(self, smiles: str) -> str:
+        """
+        This function stanrdardizes a single smiles 
+		
+		Args:
+			smiles (str): Input smiles
+			
+		Returns: 
+			str: The smiles striungof the standardized molecule
+        """
+        if smiles is nan:
+            error = "No smiles entry."
+            raise MTStandardizerError(error)
+        # Read SMILES and convert it to RDKit mol object.
+        mol = MolFromSmiles(smiles) 
         if mol is None:
-            return None, False, "failed to parse smiles {}".format(smiles)
+            raise MTStandardizerError("failed to parse smiles {}".format(smiles))
         # check size of the molecule based on the non-hydrogen atom count.
         if mol.GetNumAtoms() >= self.max_num_atoms:
-            return (
-                None,
-                False,
-                "number of non-H atoms {0} exceeds limit of {1} for smiles {2}".format(
-                    mol.GetNumAtoms(), self.max_num_atoms, smiles
-                ),
-            )
-        try:
-            mol = rdMolStandardize.ChargeParent(
-                mol
-            )  # standardize molecules using MolVS and RDKit
-            mol = self.isotope_parent(mol)
-            if self.include_stereoinfo is False:
-                Chem.RemoveStereochemistry(mol)
-            mol = self.tautomerizer.Canonicalize(mol)
-            mol_clean_tmp = self.my_standardizer(mol)
-            smi_clean_tmp = MolToSmiles(
-                mol_clean_tmp
-            )  # convert mol object back to SMILES
-            ## Double check if standardized SMILES is a valid mol object
-            mol_clean = MolFromSmiles(smi_clean_tmp)
-            smi_clean = MolToSmiles(mol_clean)
-        except (TypeError, ValueError, AttributeError) as e:
-            return None, False, str(e)
-        return smi_clean, True, None
+            error = "number of non-H atoms {0} exceeds limit of {1} for smiles {2}".format(mol.GetNumAtoms(), self.max_num_atoms, smiles)
+            raise MTStandardizerError(error)
+        # standardize molecules using MolVS and RDKit
+        mol = rdMolStandardize.ChargeParent(mol)  
+        mol = self.isotope_parent(mol)
+        if self.include_stereoinfo is False:
+            Chem.RemoveStereochemistry(mol)
+        mol = self.tautomerizer.Canonicalize(mol)
+        mol_clean_tmp = self.my_standardizer(mol)
+        smi_clean_tmp = MolToSmiles(
+            mol_clean_tmp
+        )  # convert mol object back to SMILES
+        ## Double check if standardized SMILES is a valid mol object
+        mol_clean = MolFromSmiles(smi_clean_tmp)
+        smi_clean = MolToSmiles(mol_clean)
+        return smi_clean
+		
+		
+class MTStandardizerError(ValueError):
+	"""
+	This error is thrown by the standardizer in case standardization fails
+	"""
+	pass
+
+	

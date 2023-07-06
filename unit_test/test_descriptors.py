@@ -79,6 +79,8 @@ class DescriptorCalculationTests(unittest.TestCase):
     def test_calculate_desc_feat_single(self):
         # self.defineConfig()
         tempFilePath = curDir / "output/tmp/ecfp_feat.npy"
+        refFilePath = curDir / "output//test_calculate_desc_feat.npy"
+        
         dc = DescriptorCalculator.from_param_dict(
             secret=self.keys["key"],
             method_param_dict=self.config["fingerprint"],
@@ -92,14 +94,13 @@ class DescriptorCalculationTests(unittest.TestCase):
         # np.save("unit_test/output/test_calculate_desc_feat.npy",fp_feat)   #write reference fingperprints
         np.save(tempFilePath, fp_feat)  # write test fingperprints
 
-        result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_feat.npy", tempFilePath, shallow=False
-        )
+        result = filecmp.cmp(refFilePath, tempFilePath, shallow=False)
 
         self.assertEqual(result, True)
 
     def test_calculate_desc_val_single(self):
         tempFilePath = curDir / "output/tmp/ecfp_val.npy"
+        refFilePath = curDir / "output/test_calculate_desc_val.npy"
         dc = DescriptorCalculator.from_param_dict(
             secret=self.keys["key"],
             method_param_dict=self.config["fingerprint"],
@@ -111,15 +112,12 @@ class DescriptorCalculationTests(unittest.TestCase):
         fp_val = fp[1]
         # np.save("unit_test/output/test_calculate_desc_val.npy",fp_val)   #write reference fingperprints
         np.save(tempFilePath, fp_val)  # write test fingperprints
-
-        result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_val.npy", tempFilePath, shallow=False
-        )
-
+        result = filecmp.cmp(refFilePath, tempFilePath, shallow=False)
         self.assertEqual(result, True)
 
     def test_calculate_desc_multiple(self):
         tempFilePath = curDir / "output/tmp/ecfp_feat_multiple.csv"
+        refFilePath = curDir / "output/test_calculate_desc_y2.csv"
         df_smiles = read_csv(curDir / "input/chembl/chembl_23_example_T2.csv", nrows=10)
 
         dc = DescriptorCalculator.from_param_dict(
@@ -143,10 +141,8 @@ class DescriptorCalculationTests(unittest.TestCase):
 
         df_test = dt.process_dataframe(df_smiles)[0]
         df_test.to_csv(tempFilePath, index=False)  # write test fingperprints
-        result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_y2.csv", tempFilePath, shallow=False
-        )
 
+        result = filecmp.cmp(refFilePath, tempFilePath, shallow=False)
         self.assertEqual(result, True)
 
     def test_scramble_desc_multiple_key(self):
@@ -154,6 +150,7 @@ class DescriptorCalculationTests(unittest.TestCase):
         newKey = "melloddy_2"
 
         tempFilePathFeat = curDir / "output/tmp/ecfp_feat_scrambled_new_key.csv"
+        refFilePathFeat = curDir / "output/test_calculate_desc_y2.csv"
         df_smiles = read_csv(curDir / "input/chembl/chembl_23_example_T2.csv", nrows=10)
 
         dc = DescriptorCalculator.from_param_dict(
@@ -172,11 +169,7 @@ class DescriptorCalculationTests(unittest.TestCase):
         )
         df_test = dt.process_dataframe(df_smiles)[0]
         df_test.to_csv(tempFilePathFeat, index=False)  # write test fingperprints
-        result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_y2.csv",
-            tempFilePathFeat,
-            shallow=False,
-        )
+        result = filecmp.cmp(refFilePathFeat, tempFilePathFeat, shallow=False)
         self.assertEqual(result, False)
 
     def test_output_descriptor_duplicates(self):
@@ -184,6 +177,11 @@ class DescriptorCalculationTests(unittest.TestCase):
         tempFilePathFeat_dup = curDir / "output/tmp/desc_duplicates.csv"
         tempFilePathFeat_T5 = curDir / "output/tmp/desc_T5.csv"
         tempFilePathFeat_T6 = curDir / "output/tmp/desc_T6.csv"
+        
+        refFilePathFeat_dup = curDir / "output/test_calculate_desc_duplicates.csv"
+        refFilePathFeat_T5 = curDir / "output/test_calculate_desc_T5.csv"
+        refFilePathFeat_T6 = curDir / "output/test_calculate_desc_T6.csv"
+        
         df_test = read_csv(curDir / "input/test_desc_duplicates.csv")
 
         df_T5, df_T6, df_duplicates = format_dataframe(df_test)
@@ -202,19 +200,19 @@ class DescriptorCalculationTests(unittest.TestCase):
         df_T5.to_csv(tempFilePathFeat_T5, index=False)
 
         result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_duplicates.csv",
+            refFilePathFeat_dup,
             tempFilePathFeat_dup,
             shallow=False,
         )
         self.assertEqual(result, True)
         result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_T5.csv",
+            refFilePathFeat_T5,
             tempFilePathFeat_T5,
             shallow=False,
         )
         self.assertEqual(result, True)
         result = filecmp.cmp(
-            "unit_test/output/test_calculate_desc_T6.csv",
+            refFilePathFeat_T6,
             tempFilePathFeat_T6,
             shallow=False,
         )

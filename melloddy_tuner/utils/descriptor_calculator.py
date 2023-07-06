@@ -4,6 +4,8 @@ from melloddy_tuner.utils.helper import int_to_sha256
 from typing import Dict, Tuple
 from rdkit.Chem import MolFromSmiles
 from rdkit.Chem.AllChem import GetHashedMorganFingerprint, GetMorganFingerprint
+from scipy.sparse import csr_matrix
+import torch
 
 import numpy as np
 import copy
@@ -33,9 +35,8 @@ class DescriptorCalculator(object):
         self.secret = secret
         self.binarize = binarized
         self.verbosity = verbosity
-        self.permuted_ix = DescriptorCalculator.set_permutation(
-            size=self.size, key=self.secret
-        )
+        self.apply_key(secret)
+
 
     # functions enabling pickle
     def __getstate__(self):
@@ -73,6 +74,15 @@ class DescriptorCalculator(object):
         permuted_ix = hashed_ix.argsort().argsort()
         return permuted_ix
 
+    def apply_key(self, key):
+        self.permuted_ix = DescriptorCalculator.set_permutation(
+            size=self.size, key=key)
+    
+    #if for the purpose of object serialization the permutation disct should be deleted
+    def purge_key(self):
+        del self.permuted_ix
+    
+    
     def make_scrambled_lists(self, fp_feat_arr: np.array) -> list:
         """Pseudo-random scrambling with secret.
 
@@ -123,14 +133,21 @@ class DescriptorCalculator(object):
         if self.binarize:
             fp_val.fill(int(1))
 
-        return fp_feat_scrambled.tolist(), fp_val.tolist()
+        return fp_feat_scrambled, fp_val
 
     @staticmethod
     def fp_to_json(fp_feat, fp_val):
-        fp_feat_json = json.dumps(fp_feat)
-        fp_val_json = json.dumps(fp_val)
+        fp_feat_json = json.dumps(fp_feat.tolist())
+        fp_val_json = json.dumps(fp_val.tolist())
         return fp_feat_json, fp_val_json
 
+    
+    def get_scrambled_fp(self, smiles: str) -> Tuple:
+        mol_fp = self.get_fp(smiles)
+        fp_feat_scrambled, fp_val = self.scramble_fp(mol_fp)
+        return fp_feat_scrambled, fp_val
+    
+    
     def calculate_single(self, smiles: str) -> Tuple:
         """
         Calculation of Morgan fingerprints (ECFP equivalent) with a given radius
@@ -143,13 +160,40 @@ class DescriptorCalculator(object):
         """
 
         try:
-            mol_fp = self.get_fp(smiles)
+            fp_feat_scrambled, fp_val = self.get_scrambled_fp(smiles)
+            fp_feat, fp_val = self.fp_to_json(fp_feat_scrambled, fp_val)
         except ValueError as err:
             return None, None, False, str(err)
-        try:
-            fp_feat_scrambled, fp_val_binarized = self.scramble_fp(mol_fp)
-            fp_feat, fp_val = self.fp_to_json(fp_feat_scrambled, fp_val_binarized)
-        except ValueError as err:
-            return None, None, False, str(err)
-
         return fp_feat, fp_val, True, None
+
+    def calculate_single_csr(self, smiles: str) -> csr_matrix:
+        """
+        Calculation of Morgan fingerprints (ECFP equivalent) with a given radius as single row scipy csr matrix
+        intended for directly passing to sparsechem
+
+        Args:
+            smi (str): SMILES string
+
+        Returns:
+            scipy csr matrix of fingerprint in the given bit width
+        """
+        fp_feat_scrambled, fp_val = self.get_scrambled_fp(smiles)
+        row_ind = np.repeat(0, fp_feat_scrambled.shape[0])
+        return csr_matrix((fp_val, (row_ind, fp_feat_scrambled)), shape = (1, self.size))
+    
+    
+    def calculate_single_torch_coo(self, smiles: str) -> torch.tensor :
+        """
+        Calculation of Morgan fingerprints (ECFP equivalent) with a given radius as single row torch sparse coo_tensor
+        intended for directly passing to sparsechem. The tensor has torch.float values, as this is required by the 
+        sparsechem network
+
+        Args:
+            smiles (str): SMILES string
+
+        Returns:
+            torch.tensor : torch sparse_coo_tensor of fingerprint in the given bit width
+        """
+        fp_feat_scrambled, fp_val = self.get_scrambled_fp(smiles)
+        row_ind = np.repeat(0, fp_feat_scrambled.shape[0])
+        return torch.sparse_coo_tensor(indices = np.array([row_ind,fp_feat_scrambled]), values = fp_val, size = (1, self.size),dtype=torch.float)
